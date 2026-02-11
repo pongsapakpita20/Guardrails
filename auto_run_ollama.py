@@ -89,9 +89,7 @@ if __name__ == "__main__":
         if not pull_model():
             sys.exit(1)
             
-    # Example Prompt
-    user_prompt = "สวัสดีครับ แนะนำตัวหน่อยครับ"
-    run_inference(user_prompt)
+
     
     # Simple loop for interaction
     while True:
