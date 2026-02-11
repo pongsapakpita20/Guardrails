@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 
 # 0. Install curl (à¹€à¸žà¸£à¸²à¸° Image à¸‚à¸­à¸‡ Ollama à¹„à¸¡à¹ˆà¸¡à¸µ curl à¸¡à¸²à¹ƒà¸«à¹‰)
 if ! command -v curl &> /dev/null; then
