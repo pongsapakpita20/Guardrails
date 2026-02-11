@@ -185,7 +185,7 @@ class GuardrailsAIEngine(BaseGuardEngine):
         try:
             # 3. ยิง API จริงๆ!
             response = requests.post(
-                f"{ollama_url}/api/generate", json=payload, timeout=30
+                f"{ollama_url}/api/generate", json=payload, timeout=200
             )
 
             if response.status_code == 200:
