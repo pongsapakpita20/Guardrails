@@ -28,7 +28,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend/src:/app/src # Hot reload: แก้โค้ดแล้วเปลี่ยนเลยไม่ต้อง restart
+      - ./backend/src:/app/src
     environment:
       - OLLAMA_URL=http://ollama:11434
     depends_on:
@@ -45,6 +45,7 @@ services:
       - "5173:5173"
     volumes:
       - ./frontend/src:/app/src # Hot reload UI
+      - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:8000
     depends_on:

@@ -1,48 +1,50 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Dict, List, Any
 
-# สร้างแอป
+# Import Engine ที่เราเพิ่งทำ
+from .engines import active_engine 
+from .engines.base import SwitchInfo
+
 app = FastAPI(title="AI Guardrails Gateway")
 
-# 1. Config CORS (เพื่อให้ Frontend React ยิงเข้ามาได้)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # ใน Production ควรระบุเป็น ["http://localhost:5173"]
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 2. Define Data Model (หน้าตาข้อมูลที่รับ-ส่ง)
-class ConfigSwitches(BaseModel):
-    violent_check: bool = True
-    crime_check: bool = True
-    sex_check: bool = True
-    child_check: bool = True
-    self_harm_check: bool = True
-    hate_check: bool = True
-    pii_check: bool = False
-    off_topic_check: bool = False
+# --- 1. Endpoint ใหม่: ขอรายการสวิตช์ ---
+@app.get("/config/switches", response_model=List[SwitchInfo])
+async def get_switches():
+    """Frontend จะเรียกอันนี้เพื่อไปวาดปุ่ม"""
+    return active_engine.get_switches()
 
+# --- 2. Endpoint เดิม: แต่ใช้ Engine ใหม่ ---
 class ChatRequest(BaseModel):
     message: str
-    config: Optional[ConfigSwitches] = None
-
-# 3. Routes (จุดเชื่อมต่อ)
-@app.get("/")
-async def health_check():
-    return {"status": "online", "service": "Guardrails Gateway"}
+    config: Dict[str, bool] # รับเป็น Dict ยืดหยุ่น ไม่ Fix Field แล้ว
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
-    # Phase 2: Mockup logic (ยังไม่ได้ต่อ AI จริง)
-    print(f"Received message: {request.message}")
-    print(f"Active Switches: {request.config}")
+    print(f"📥 Input: {request.message}")
+    
+    # เรียกใช้ Engine ปัจจุบัน
+    result = await active_engine.process(request.message, request.config)
+    
+    if not result.safe:
+        return {
+            "status": "blocked",
+            "response": "[BLOCKED] เนื้อหาไม่ปลอดภัย",
+            "violation": result.violation,
+            "reason": result.reason
+        }
     
     return {
         "status": "success",
-        "response": f"Echo from Gateway: {request.message}",
+        "response": f"AI: รับทราบครับ '{request.message}' (ปลอดภัย)",
         "violation": None
     }
