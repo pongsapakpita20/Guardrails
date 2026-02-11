@@ -11,8 +11,8 @@ def get_engine() -> BaseGuardEngine:
     
     if engine_type == "nemo":
         return NemoGuardEngine()
-    elif engine_type == "guardrails_ai": # <--- รองรับชื่อนี้
-        return GuardrailsAIEngine()      # <--- Return Class ที่เราเพิ่งสร้าง
+    elif engine_type == "guardrails_ai":
+        return GuardrailsAIEngine()  # <-- เปิดใช้งาน
     else:
         return LlamaGuardEngine()
 

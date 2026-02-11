@@ -7,6 +7,10 @@ services:
       - "11434:11434"
     volumes:
       - ollama_storage:/root/.ollama
+      # 👇 1. Mount ไฟล์ script เข้าไปใน container
+      - ./ollama/entrypoint.sh:/entrypoint.sh
+    # 👇 2. สั่งให้รัน script นี้เป็นอันดับแรก
+    entrypoint: ["/bin/bash", "/entrypoint.sh"]
     networks:
       - ai-net
 
@@ -18,8 +22,9 @@ services:
     volumes:
       - ./backend/src:/app/src
     environment:
+      # ใช้ชื่อ service 'ollama' แทน localhost หรือ IP
       - OLLAMA_URL=http://ollama:11434
-      - GUARD_ENGINE=guardrails_ai  # <--- บอกระบบให้ใช้ตัวใหม่ที่เราเพิ่งเขียน
+      - GUARD_ENGINE=guardrails_ai
     depends_on:
       - ollama
     networks:
