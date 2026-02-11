@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # 1. Brain: สมองหลัก (Ollama)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: guardrails-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_storage:/root/.ollama
+    networks:
+      - ai-net
+    # ถ้ามีการ์ดจอ NVIDIA ให้เปิด comment ด้านล่างนี้
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # 2. Gateway: ยามเฝ้าประตู (Python FastAPI)
+  backend:
+    build: 
+      context: ./backend
+    container_name: guardrails-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/src:/app/src # Hot reload: แก้โค้ดแล้วเปลี่ยนเลยไม่ต้อง restart
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+    depends_on:
+      - ollama
+    networks:
+      - ai-net
+
+  # 3. UI: หน้าจอควบคุม (React + TypeScript)
+  frontend:
+    build:
+      context: ./frontend
+    container_name: guardrails-ui
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src # Hot reload UI
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - ai-net
+
+volumes:
+  ollama_storage:
+
+networks:
+  ai-net:
+    driver: bridge
