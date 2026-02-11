@@ -4,7 +4,6 @@ import os
 from guardrails import Guard # type: ignore
 from ..base import BaseGuardEngine, SwitchInfo, GuardResult
 
-# Import Validators ที่เราแยกไปไว้ไฟล์เมื่อกี้
 from .validators import (
     MockJailbreak,
     MockProfanity,
