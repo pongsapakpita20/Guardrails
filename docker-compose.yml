@@ -11,16 +11,7 @@ services:
       - ollama_storage:/root/.ollama
     networks:
       - ai-net
-    # ถ้ามีการ์ดจอ NVIDIA ให้เปิด comment ด้านล่างนี้
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
 
-  # 2. Gateway: ยามเฝ้าประตู (Python FastAPI)
   backend:
     build: 
       context: ./backend
