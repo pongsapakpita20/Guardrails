@@ -1,8 +1,8 @@
 from typing import List, Dict, Any, Optional
 import re
 from .base import BaseGuardEngine, SwitchInfo, GuardResult
-from guardrails import Guard
-from guardrails.validators import (
+from guardrails import Guard # type: ignore
+from guardrails.validators import ( # type: ignore
     Validator,
     register_validator,
     ValidationResult,

@@ -18,12 +18,12 @@ body {
 
 .app-container {
   display: flex;
-  gap: 24px;
-  padding: 24px;
+  gap: 20px;
+  padding: 20px;
   height: 100vh;
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100vw; /* เต็มจอแนวกว้าง */
   box-sizing: border-box;
+  background-color: var(--bg-color);
 }
 
 /* --- Panel Styles --- */
@@ -37,16 +37,22 @@ body {
 }
 
 .control-panel {
-  flex: 1;
-  max-width: 350px;
+  flex: 0 0 280px; 
   border: 1px solid #e5e7eb;
 }
-
 .chat-panel {
-  flex: 2;
+  flex: 1; /* ให้กินพื้นที่ที่เหลือทั้งหมด */
   border: 1px solid #e5e7eb;
+  min-width: 400px; /* กันไม่ให้บีบจนเล็กเกิน */
 }
-
+.log-panel {
+  flex: 0 0 320px; /* กว้างกว่า Settings หน่อยจะได้อ่าน Log สบาย */
+  background: #0f172a; /* สีพื้นหลังดำ Hacker style */
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  border: 1px solid #334155;
+}
 .panel-header {
   padding: 20px;
   border-bottom: 1px solid #e5e7eb;
