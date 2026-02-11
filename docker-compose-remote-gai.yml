@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  # ❌ ลบ Service 'ollama' ทิ้งไปเลย เพราะเราใช้เครื่องอื่นแล้ว
+
+  backend:
+    build: 
+      context: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/src:/app/src
+    environment:
+      # 👇 เปลี่ยนตรงนี้! ใส่ IP ของเครื่อง Machine B
+      - OLLAMA_URL=http://172.16.25.72:11434
+      - GUARD_ENGINE=guardrails_ai
+    # depends_on:  <-- ลบอันนี้ทิ้งด้วย เพราะไม่มี service ollama ให้รอแล้ว
+    #   - ollama
+    networks:
+      - ai-net
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - ai-net
+
+networks:
+  ai-net:
+    driver: bridge
