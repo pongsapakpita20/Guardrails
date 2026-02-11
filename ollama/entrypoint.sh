@@ -24,11 +24,11 @@ echo " Ollama is ready 👌 !"
 MODEL_NAME="qwen3:1.7b"
 
 if curl -s http://localhost:11434/api/tags | grep -q "$MODEL_NAME"; then
-    echo "âœ… Model $MODEL_NAME already exists. Skipping pull."
+    echo "👌 Model $MODEL_NAME already exists. Skipping pull."
 else
-    echo "ðŸ“¥ Pulling model $MODEL_NAME..."
+    echo "❤️ Pulling model $MODEL_NAME..."
     ollama pull $MODEL_NAME
-    echo "âœ… Model pulled successfully!"
+    echo "👌 Model pulled successfully!"
 fi
 
 # 4. Wait for the process to finish
