@@ -1,0 +1,13 @@
+*.i
+*.ii
+*.gpu
+*.ptx
+*.cubin
+*.fatbin
+
+/frontend/node_modules/
+/venv/
+/__pycache__/
+*.pyc
+*.pyo
+.env
