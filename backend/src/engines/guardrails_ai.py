@@ -174,7 +174,7 @@ class GuardrailsAIEngine(BaseGuardEngine):
             system_prompt += " You must answer in JSON format only."
 
         payload = {
-            "model": "qwen3:8b",  # ตรวจสอบชื่อรุ่นโมเดลให้ตรงกับที่ pull มา
+            "model": "qwen3:1.7b",  # ตรวจสอบชื่อรุ่นโมเดลให้ตรงกับที่ pull มา
             "prompt": message,
             "system": system_prompt,
             "stream": False,
