@@ -1,46 +1,65 @@
 import { useState, useRef, useEffect } from 'react';
 import './App.css';
 
-interface ConfigSwitches {
-  violent_check: boolean;
-  crime_check: boolean;
-  sex_check: boolean;
-  child_check: boolean;
-  self_harm_check: boolean;
-  hate_check: boolean;
-  pii_check: boolean;
-  off_topic_check: boolean;
+// 1. นิยามโครงสร้างข้อมูลที่รับจาก API
+interface SwitchInfo {
+  key: string;
+  label: string;
+  default: boolean;
+  description?: string;
 }
 
 interface ChatMessage {
   sender: string;
   text: string;
   status?: string;
-  violation?: string; // เก็บประเภท violation แยกออกมาแสดงผลสวยๆ
+  violation?: string;
 }
 
 function App() {
   const [input, setInput] = useState("");
   const [chatLog, setChatLog] = useState<ChatMessage[]>([]);
-  const chatEndRef = useRef<HTMLDivElement>(null); // Auto scroll
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const [config, setConfig] = useState<ConfigSwitches>({
-    violent_check: true,
-    crime_check: true,
-    sex_check: true,
-    child_check: true,
-    self_harm_check: true,
-    hate_check: true,
-    pii_check: false,
-    off_topic_check: false,
-  });
+  // 2. State ใหม่: เก็บรายชื่อสวิตช์ที่ Server มี
+  const [availableSwitches, setAvailableSwitches] = useState<SwitchInfo[]>([]);
+  
+  // 3. State เดิม: เก็บค่าเปิด/ปิด (แต่ตอนนี้เป็น Dynamic Object)
+  const [config, setConfig] = useState<Record<string, boolean>>({});
 
-  // Auto scroll to bottom
+  // Auto scroll
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatLog]);
 
-  const handleToggle = (key: keyof ConfigSwitches) => {
+  // 4. Load Config เมื่อเปิดหน้าเว็บ
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/config/switches");
+        const switches: SwitchInfo[] = await res.json();
+        
+        // เก็บรายชื่อสวิตช์ไว้สร้างปุ่ม
+        setAvailableSwitches(switches);
+
+        // ตั้งค่า Default (เปิด/ปิด) ตามที่ Server บอกมา
+        const initialConfig: Record<string, boolean> = {};
+        switches.forEach(sw => {
+          initialConfig[sw.key] = sw.default;
+        });
+        setConfig(initialConfig);
+
+      } catch (error) {
+        console.error("Failed to load switches:", error);
+        // Fallback กรณีต่อ Server ไม่ติด
+        setChatLog(prev => [...prev, { sender: "System", text: "⚠️ ไม่สามารถเชื่อมต่อกับ Backend ได้ กรุณาเช็ค Docker", status: "error" }]);
+      }
+    };
+
+    fetchConfig();
+  }, []);
+
+  const handleToggle = (key: string) => {
     setConfig(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
@@ -50,12 +69,13 @@ function App() {
     const newLog = [...chatLog, { sender: "User", text: input, status: "user" }];
     setChatLog(newLog);
     const msgToSend = input;
-    setInput(""); // Clear input early for better UX
+    setInput("");
 
     try {
       const res = await fetch("http://localhost:8000/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // ส่ง Config ปัจจุบันไปให้ Backend
         body: JSON.stringify({ message: msgToSend, config: config }),
       });
       
@@ -64,7 +84,7 @@ function App() {
       setChatLog(prev => [...prev, { 
         sender: data.status === "blocked" ? "Guardrail" : "AI", 
         text: data.response,
-        status: data.status, // 'success' or 'blocked'
+        status: data.status,
         violation: data.violation
       }]);
 
@@ -77,30 +97,42 @@ function App() {
   return (
     <div className="app-container">
       
-      {/* --- Left Panel: Control Switches --- */}
+      {/* --- Left Panel: Dynamic Control Switches --- */}
       <div className="panel control-panel">
         <div className="panel-header">
-          <h2>🛡️ Guardrails Config</h2>
+          <h2>🛡️ Active Guardrails</h2>
+          {/* แสดงชื่อ Engine ที่ใช้อยู่ (ดูจากจำนวนปุ่มเอาก็ได้) */}
+          <span style={{fontSize: '0.8rem', color: '#666'}}>
+            {availableSwitches.length > 0 ? `Loaded ${availableSwitches.length} Rules` : 'Loading...'}
+          </span>
         </div>
+        
         <div className="config-list">
-          {Object.entries(config).map(([key, value]) => (
+          {availableSwitches.length === 0 && (
+            <div style={{padding: '20px', textAlign: 'center', color: '#999'}}>
+              ⏳ Connecting to Guard Engine...
+            </div>
+          )}
+
+          {availableSwitches.map((sw) => (
             <div 
-              key={key} 
-              className={`config-item ${value ? 'active' : 'inactive'}`}
-              onClick={() => handleToggle(key as keyof ConfigSwitches)}
+              key={sw.key} 
+              className={`config-item ${config[sw.key] ? 'active' : 'inactive'}`}
+              onClick={() => handleToggle(sw.key)}
+              title={sw.description}
             >
-              <span>{key.replace('_check', '').replace('_', ' ').toUpperCase()}</span>
+              <span>{sw.label}</span>
               <input 
                 type="checkbox" 
-                checked={value} 
-                readOnly // Managed by parent div click
+                checked={config[sw.key] || false} 
+                readOnly 
               />
             </div>
           ))}
         </div>
       </div>
 
-      {/* --- Right Panel: Chat Area --- */}
+      {/* --- Right Panel: Chat Area (เหมือนเดิม) --- */}
       <div className="panel chat-panel">
         <div className="panel-header">
           <h2>💬 Chat Testing Playground</h2>
