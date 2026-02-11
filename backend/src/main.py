@@ -32,19 +32,25 @@ class ChatRequest(BaseModel):
 async def chat_endpoint(request: ChatRequest):
     print(f"📥 Input: {request.message}")
     
-    # เรียกใช้ Engine ปัจจุบัน
+    # เรียกใช้ Engine
     result = await active_engine.process(request.message, request.config)
     
+    # กรณี: ไม่ปลอดภัย (Blocked)
     if not result.safe:
         return {
             "status": "blocked",
-            "response": "[BLOCKED] เนื้อหาไม่ปลอดภัย",
+            "response": "🚫 " + (result.reason or "เนื้อหาไม่ปลอดภัย"),
             "violation": result.violation,
             "reason": result.reason
         }
     
+    # กรณี: ปลอดภัย (Success) -> ✅ แก้ตรงนี้ครับ!
+    # ถ้ามีคำตอบจาก AI (ฝากมาใน reason) ให้ใช้เลย
+    # ถ้าไม่มี (เช่น LlamaGuardEngine ตัวเก่า) ให้ใช้ Default text
+    real_response = result.reason if result.reason else f"AI: รับทราบครับ '{request.message}' (ปลอดภัย)"
+    
     return {
         "status": "success",
-        "response": f"AI: รับทราบครับ '{request.message}' (ปลอดภัย)",
+        "response": real_response,
         "violation": None
     }

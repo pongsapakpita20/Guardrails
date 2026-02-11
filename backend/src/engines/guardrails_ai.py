@@ -163,18 +163,18 @@ class GuardrailsAIEngine(BaseGuardEngine):
         # -------------------------------------------------
         # Step 2: Simulate LLM Generation (จำลองคำตอบ AI)
         # -------------------------------------------------
-        # เพื่อให้เราทดสอบ Output Rails ได้ ผมจะสร้างคำตอบปลอมๆ ขึ้นมาตาม Input
-
-        ollama_url = os.getenv("OLLAMA_URL", "http://172.16.25.72:11434")
+        
+        # ✅✅✅ แก้ไขตรงนี้ครับ ✅✅✅
+        # ให้ Default เป็น http://ollama:11434 (ชื่อ Service ใน Docker)
+        ollama_url = os.getenv("OLLAMA_URL", "http://ollama:11434")
 
         # 2. เตรียม Payload
-        # ถ้าอยากให้ตอบเป็น JSON (กรณีเปิดสวิตช์ json_format) ก็สั่งใน Prompt ได้
         system_prompt = "You are a helpful assistant."
         if config.get("json_format"):
             system_prompt += " You must answer in JSON format only."
 
         payload = {
-            "model": "qwen:0.5b",  # หรือรุ่นที่คุณมีในเครื่อง B
+            "model": "qwen3:8b",  # ตรวจสอบชื่อรุ่นโมเดลให้ตรงกับที่ pull มา
             "prompt": message,
             "system": system_prompt,
             "stream": False,
@@ -196,6 +196,7 @@ class GuardrailsAIEngine(BaseGuardEngine):
         except Exception as e:
             print(f"🔥 Connection Failed: {e}")
             ai_response = "Error: Could not connect to Remote AI Server."
+        
         # -------------------------------------------------
         # Step 3: Validate OUTPUT (AI Response)
         # -------------------------------------------------
@@ -216,7 +217,6 @@ class GuardrailsAIEngine(BaseGuardEngine):
                         reason="AI Response was blocked (Unsafe Output)",
                     )
             except Exception as e:
-                # ถ้า Output ไม่ผ่าน เราจะ Block ไม่ให้ส่งหา User
                 return GuardResult(
                     safe=False,
                     violation="Output Violation",
@@ -224,4 +224,5 @@ class GuardrailsAIEngine(BaseGuardEngine):
                 )
 
         # ถ้าผ่านหมดทั้ง Input และ Output
-        return GuardResult(safe=True)
+        # (Optional: ฝากคำตอบกลับไปใน reason เพื่อให้ main.py เห็น ถ้าต้องการ)
+        return GuardResult(safe=True, reason=ai_response)
