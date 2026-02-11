@@ -1,7 +1,7 @@
 import os
 from .base import BaseGuardEngine
-from .llama_guard import LlamaGuardEngine
-from .nemo import NemoGuardEngine # หรือ nemo.py แล้วแต่ชื่อไฟล์คุณ
+from .llama_guard.llama_guard import LlamaGuardEngine
+from .nemo.nemo import NemoGuardEngine # หรือ nemo.py แล้วแต่ชื่อไฟล์คุณ
 from .guardrails_ai import GuardrailsAIEngine # <--- Import เข้ามา
 
 def get_engine() -> BaseGuardEngine:

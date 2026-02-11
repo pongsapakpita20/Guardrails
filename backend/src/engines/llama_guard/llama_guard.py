@@ -1,6 +1,6 @@
 from typing import List, Dict
 import re
-from .base import BaseGuardEngine, SwitchInfo, GuardResult
+from ..base import BaseGuardEngine, SwitchInfo, GuardResult
 
 class LlamaGuardEngine(BaseGuardEngine):
     def get_switches(self) -> List[SwitchInfo]:

@@ -1,5 +1,5 @@
 from typing import List, Dict
-from .base import BaseGuardEngine, SwitchInfo, GuardResult
+from ..base import BaseGuardEngine, SwitchInfo, GuardResult
 
 class NemoGuardEngine(BaseGuardEngine):
     def get_switches(self) -> List[SwitchInfo]:
