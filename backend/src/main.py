@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 # ✅ ใช้ Factory แทน active_engine ตัวเก่า
 from .engines.factory import EngineFactory
 from .engines.base import SwitchInfo
-
+from .llm.factory import LLMFactory
 app = FastAPI(title="AI Guardrails Gateway")
 
 app.add_middleware(
@@ -82,3 +82,24 @@ async def chat_endpoint(request: ChatRequest):
             "response": "System Error: เกิดข้อผิดพลาดภายในระบบ",
             "violation": str(e)
         }
+    
+# ==========================================
+# 4. Endpoint ใหม่: ขอรายชื่อ LLM Providers (Ollama, GPUStack)
+# ==========================================
+@app.get("/providers")
+async def get_providers():
+    return LLMFactory.get_providers()    
+
+# ==========================================
+# 5. Endpoint ใหม่: ขอรายชื่อ Models ของ Provider นั้นๆ
+# ==========================================
+@app.get("/models/{provider_id}")
+async def get_models(provider_id: str):
+    try:
+        service = LLMFactory.get_service(provider_id)
+        models = service.get_models()
+        return {"provider": provider_id, "models": models}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

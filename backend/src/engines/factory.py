@@ -4,7 +4,7 @@ from .base import BaseGuardEngine
 # Import Engine ทั้งหมดมารอไว้
 from .guardrails_ai import GuardrailsAIEngine
 from .llama_guard import LlamaGuardEngine
-from .nemo import NemoGuardEngine
+from .nemo_guard import NemoGuardEngine
 
 class EngineFactory:
     """
