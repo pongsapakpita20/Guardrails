@@ -1,10 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Dict, List, Any
+from typing import Dict, List, Optional
 
-# Import Engine ที่เราเพิ่งทำ
-from .engines import active_engine 
+# ✅ ใช้ Factory แทน active_engine ตัวเก่า
+from .engines.factory import EngineFactory
 from .engines.base import SwitchInfo
 
 app = FastAPI(title="AI Guardrails Gateway")
@@ -17,40 +17,68 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- 1. Endpoint ใหม่: ขอรายการสวิตช์ ---
-@app.get("/config/switches", response_model=List[SwitchInfo])
-async def get_switches():
-    """Frontend จะเรียกอันนี้เพื่อไปวาดปุ่ม"""
-    return active_engine.get_switches()
+# ==========================================
+# 1. Endpoint ใหม่: ขอรายชื่อ Framework ทั้งหมด
+# ==========================================
+@app.get("/frameworks")
+async def get_frameworks():
+    """ส่งรายชื่อ Engine ที่ระบบมีกลับไปทำ Dropdown"""
+    return EngineFactory.get_available_engines()
 
-# --- 2. Endpoint เดิม: แต่ใช้ Engine ใหม่ ---
+# ==========================================
+# 2. Endpoint แก้ไข: ขอสวิตช์ (ตาม Framework ที่เลือก)
+# ==========================================
+@app.get("/config/switches", response_model=List[SwitchInfo])
+async def get_switches(framework_id: str = Query("guardrails_ai", description="ID ของ Framework ที่ต้องการ")):
+    try:
+        engine = EngineFactory.get_engine(framework_id)
+        return engine.get_switches()
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+# ==========================================
+# 3. Endpoint แก้ไข: Chat (ระบุ Framework ได้)
+# ==========================================
 class ChatRequest(BaseModel):
     message: str
-    config: Dict[str, bool] # รับเป็น Dict ยืดหยุ่น ไม่ Fix Field แล้ว
+    config: Dict[str, bool]
+    framework_id: str = "guardrails_ai"  # <--- เพิ่มช่องนี้
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
-    print(f"📥 Input: {request.message}")
+    print(f"📥 Input: {request.message} | Engine: {request.framework_id}")
     
-    # เรียกใช้ Engine
-    result = await active_engine.process(request.message, request.config)
-    
-    # กรณี: ไม่ปลอดภัย (Blocked)
-    if not result.safe:
+    try:
+        # 1. เรียก Engine ตามที่ User เลือกผ่าน Factory
+        active_engine = EngineFactory.get_engine(request.framework_id)
+        
+        # 2. ประมวลผล
+        result = await active_engine.process(request.message, request.config)
+        
+        # กรณี: ไม่ปลอดภัย (Blocked)
+        if not result.safe:
+            return {
+                "status": "blocked",
+                "response": "🚫 " + (result.reason or "เนื้อหาไม่ปลอดภัย"),
+                "violation": result.violation,
+                "reason": result.reason
+            }
+        
+        # กรณี: ปลอดภัย (Success)
+        real_response = result.reason if result.reason else f"AI ({request.framework_id}): รับทราบครับ '{request.message}' (ปลอดภัย)"
+        
         return {
-            "status": "blocked",
-            "response": "🚫 " + (result.reason or "เนื้อหาไม่ปลอดภัย"),
-            "violation": result.violation,
-            "reason": result.reason
+            "status": "success",
+            "response": real_response,
+            "violation": None
         }
-    
-    # กรณี: ปลอดภัย (Success) -> ✅ แก้ตรงนี้ครับ!
-    # ถ้ามีคำตอบจาก AI (ฝากมาใน reason) ให้ใช้เลย
-    # ถ้าไม่มี (เช่น LlamaGuardEngine ตัวเก่า) ให้ใช้ Default text
-    real_response = result.reason if result.reason else f"AI: รับทราบครับ '{request.message}' (ปลอดภัย)"
-    
-    return {
-        "status": "success",
-        "response": real_response,
-        "violation": None
-    }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Engine Error: {str(e)}")
+    except Exception as e:
+        print(f"🔥 System Error: {e}")
+        return {
+            "status": "error",
+            "response": "System Error: เกิดข้อผิดพลาดภายในระบบ",
+            "violation": str(e)
+        }
