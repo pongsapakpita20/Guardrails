@@ -15,7 +15,7 @@ class LlamaGuardEngine(BaseGuardEngine):
             SwitchInfo(key="off_topic_check", label="Off-Topic Control", default=False),
         ]
 
-    async def process(self, message: str, config: Dict[str, bool]) -> GuardResult:
+    async def process(self, message: str, config: Dict[str, bool], **kwargs) -> GuardResult:
         text = message.lower()
         
         # --- 1. Violent Crimes ---

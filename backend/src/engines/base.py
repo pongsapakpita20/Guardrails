@@ -20,10 +20,10 @@ class BaseGuardEngine(ABC):
     
     @abstractmethod
     def get_switches(self) -> List[SwitchInfo]:
-        """คืนค่ารายชื่อสวิตช์ที่ Engine นี้รองรับ"""
         pass
 
+    # ✅ แก้บรรทัดนี้: เพิ่ม **kwargs เพื่อรับ model_name, provider_id
     @abstractmethod
-    async def process(self, message: str, config: Dict[str, bool]) -> GuardResult:
+    async def process(self, message: str, config: Dict[str, bool], **kwargs) -> GuardResult:
         """ประมวลผลข้อความตาม Config"""
         pass

@@ -10,7 +10,7 @@ class NemoGuardEngine(BaseGuardEngine):
             SwitchInfo(key="input_check", label="Input Validation", default=True),
         ]
 
-    async def process(self, message: str, config: Dict[str, bool]) -> GuardResult:
+    async def process(self, message: str, config: Dict[str, bool], **kwargs) -> GuardResult:
         # Mock Logic ของ NeMo
         if config.get("jailbreak") and "ignore previous" in message.lower():
             return GuardResult(safe=False, violation="Jailbreak", reason="NeMo blocked jailbreak attempt")

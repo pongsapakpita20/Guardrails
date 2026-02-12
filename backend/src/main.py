@@ -43,18 +43,24 @@ class ChatRequest(BaseModel):
     message: str
     config: Dict[str, bool]
     framework_id: str = "guardrails_ai"  # <--- เพิ่มช่องนี้
+    provider_id: str = "ollama"      # <--- เพิ่ม
+    model_name: str = "qwen2.5:7b"   # <--- เพิ่ม (Default)
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     print(f"📥 Input: {request.message} | Engine: {request.framework_id}")
     
     try:
-        # 1. เรียก Engine ตามที่ User เลือกผ่าน Factory
         active_engine = EngineFactory.get_engine(request.framework_id)
         
-        # 2. ประมวลผล
-        result = await active_engine.process(request.message, request.config)
-        
+        # 2. ส่ง provider_id และ model_name ไปให้ Engine
+        # (ต้องแก้ Base Engine ให้รับ kwargs ได้ก่อน ดูข้อ 2)
+        result = await active_engine.process(
+            request.message, 
+            request.config, 
+            provider_id=request.provider_id, 
+            model_name=request.model_name
+        )
         # กรณี: ไม่ปลอดภัย (Blocked)
         if not result.safe:
             return {
@@ -63,9 +69,8 @@ async def chat_endpoint(request: ChatRequest):
                 "violation": result.violation,
                 "reason": result.reason
             }
-        
-        # กรณี: ปลอดภัย (Success)
-        real_response = result.reason if result.reason else f"AI ({request.framework_id}): รับทราบครับ '{request.message}' (ปลอดภัย)"
+            
+        real_response = result.reason if result.reason else f"AI: รับทราบครับ (ปลอดภัย)"
         
         return {
             "status": "success",
@@ -73,8 +78,6 @@ async def chat_endpoint(request: ChatRequest):
             "violation": None
         }
 
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=f"Engine Error: {str(e)}")
     except Exception as e:
         print(f"🔥 System Error: {e}")
         return {
