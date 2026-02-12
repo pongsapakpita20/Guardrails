@@ -18,11 +18,12 @@ CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload
 # -----------------------------------------------------------------------------
 ARG GUARDRAILS_TOKEN
 RUN if [ -n "$GUARDRAILS_TOKEN" ]; then \
+    pip install --force-reinstall "rich<14.0.0" && \
     guardrails configure --token $GUARDRAILS_TOKEN --disable-metrics --disable-remote-inferencing && \
     guardrails hub install hub://guardrails/detect_pii && \
     guardrails hub install hub://tryolabs/restricttotopic && \
     guardrails hub install hub://guardrails/detect_jailbreak && \
-    guardrails hub install hub://guardrails/self_check && \
+    guardrails hub install hub://bespokelabs/bespoke_minicheck && \
     guardrails hub install hub://guardrails/toxic_language && \
     guardrails hub install hub://guardrails/competitor_check; \
     else \

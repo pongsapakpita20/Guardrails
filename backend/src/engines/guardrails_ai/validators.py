@@ -21,15 +21,38 @@ class MockHubValidator(Validator):
 
 # พยายามโหลดของจริง ถ้าไม่มีให้เป็น None (เราจะไปดักใช้ Logic เองข้างล่าง)
 try:
-    from guardrails.hub import DetectPII, RestrictToTopic, DetectJailbreak, SelfCheck, ToxicLanguage, CompetitorCheck # type: ignore
+    from guardrails.hub import DetectPII, RestrictToTopic, DetectJailbreak, SelfCheck, ToxicLanguage, CompetitorCheck, BespokeMiniCheck # type: ignore
 except ImportError:
-    print("⚠️ Warning: Guardrails Hub validators not installed. Using Regex/Keyword Logic.")
+    print("⚠️ Warning: Guardrails Hub validators not installed or import error.")
     DetectPII = None
     RestrictToTopic = None
     DetectJailbreak = None
     SelfCheck = None
     ToxicLanguage = None
     CompetitorCheck = None
+    BespokeMiniCheck = None
+
+# ... (omitted)
+
+# ==========================================
+# 🛡️ ZONE 2: Output Rails
+# ==========================================
+
+@register_validator(name="hub_hallucination", data_type="string")
+class HubHallucination(Validator):
+    def __init__(self, on_fail: str = "exception", llm_callable: Optional[Callable] = None, **kwargs):
+        super().__init__(on_fail=on_fail)
+        # Priority: BespokeMiniCheck -> SelfCheck (Mock/None) -> Pass
+        self.validator = None
+        if BespokeMiniCheck:
+             self.validator = BespokeMiniCheck(on_fail=on_fail, **kwargs)
+        elif SelfCheck:
+             self.validator = SelfCheck(on_fail=on_fail, **kwargs)
+        
+    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
+        if self.validator:
+            return self.validator.validate(value, metadata)
+        return PassResult()
 
 # ==========================================
 # 🛡️ ZONE 1: Input Rails (Wrappers with Logic)
@@ -97,21 +120,40 @@ class HubToxicity(Validator):
 
         return PassResult()
 
-# ... (ส่วน Output Validators ปล่อย Mock ไว้เหมือนเดิม เพราะเราเน้น Input ก่อน) ...
-@register_validator(name="hub_hallucination", data_type="string")
-class HubHallucination(Validator):
-    def __init__(self, on_fail: str = "exception", llm_callable: Optional[Callable] = None, **kwargs):
-        super().__init__(on_fail=on_fail)
-        self.validator = None
-    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
-        return PassResult()
-
+# 1.5 Competitor Monitor
 @register_validator(name="hub_competitor", data_type="string")
 class HubCompetitor(Validator):
     def __init__(self, competitors: List[str] = None, on_fail: str = "exception", llm_callable: Optional[Callable] = None, **kwargs):
         super().__init__(on_fail=on_fail)
-        self.validator = None
+        if CompetitorCheck:
+            self.validator = CompetitorCheck(competitors=competitors or [], on_fail=on_fail, **kwargs)
+        else:
+            self.validator = None
+
     def validate(self, value: Any, metadata: Dict) -> ValidationResult:
+        if self.validator: return self.validator.validate(value, metadata)
+        return PassResult()
+
+# ==========================================
+# 🛡️ ZONE 2: Output Rails
+# ==========================================
+
+@register_validator(name="hub_hallucination", data_type="string")
+class HubHallucination(Validator):
+    def __init__(self, on_fail: str = "exception", llm_callable: Optional[Callable] = None, **kwargs):
+        super().__init__(on_fail=on_fail)
+        # Priority: MiniCheck -> SelfCheck (Mock/None) -> Pass
+        self.validator = None
+        if MiniCheck:
+             self.validator = MiniCheck(on_fail=on_fail, **kwargs)
+        elif BespokeMiniCheck:
+             self.validator = BespokeMiniCheck(on_fail=on_fail, **kwargs)
+        elif SelfCheck:
+             self.validator = SelfCheck(on_fail=on_fail, **kwargs)
+        
+    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
+        if self.validator:
+            return self.validator.validate(value, metadata)
         return PassResult()
 
 @register_validator(name="mock_json_format", data_type="string")
