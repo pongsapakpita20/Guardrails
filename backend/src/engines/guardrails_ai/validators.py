@@ -47,13 +47,9 @@ class HubPII(Validator):
             self.validator = None
 
     def validate(self, value: Any, metadata: Dict) -> ValidationResult:
-        # 1. ถ้ามีของจริง ให้ใช้ของจริง
+        # ถ้ามีของจริง ให้ใช้ของจริง
         if self.validator: return self.validator.validate(value, metadata)
         
-        # 2. 🔥 Logic สำรอง: ตรวจเบอร์โทร 10 หลัก (เช่น 0812345678)
-        text = str(value)
-        if re.search(r"\d{10}", text):
-             return FailResult(error_message="PII detected (Phone Number).", fix_value="[REDACTED]")
         return PassResult()
 
 # 1.2 Off-Topic (การเมือง)
@@ -69,13 +65,6 @@ class HubTopic(Validator):
     def validate(self, value: Any, metadata: Dict) -> ValidationResult:
         if self.validator: return self.validator.validate(value, metadata)
 
-        # 2. 🔥 Logic สำรอง: ตรวจคำต้องห้าม (ภาษาไทย/อังกฤษ)
-        text = str(value).lower()
-        # เพิ่มคำที่คุณทดสอบ: "การเมือง", "government", "politics"
-        forbidden = ["politics", "bitcoin", "crypto", "การเมือง", "นายก", "รัฐบาล", "เลือกตั้ง"]
-        for word in forbidden:
-            if word in text:
-                 return FailResult(error_message=f"Off-topic content detected ({word}).", fix_value="")
         return PassResult()
 
 # 1.3 Jailbreak (Ignore previous)
@@ -91,13 +80,6 @@ class HubJailbreak(Validator):
     def validate(self, value: Any, metadata: Dict) -> ValidationResult:
         if self.validator: return self.validator.validate(value, metadata)
 
-        # 2. 🔥 Logic สำรอง: ตรวจคำสั่งแหกคุก
-        text = str(value).lower()
-        # เพิ่มคำที่คุณทดสอบ: "ignore previous instructions"
-        triggers = ["ignore previous", "bypass", "system prompt", "ลืมคำสั่ง", "ยกเลิกคำสั่ง"]
-        for t in triggers:
-            if t in text:
-                return FailResult(error_message="Jailbreak attempt detected.", fix_value="")
         return PassResult()
 
 # 1.4 Toxicity (คำหยาบ)
@@ -113,13 +95,6 @@ class HubToxicity(Validator):
     def validate(self, value: Any, metadata: Dict) -> ValidationResult:
         if self.validator: return self.validator.validate(value, metadata)
 
-        # 2. 🔥 Logic สำรอง: คำหยาบ
-        text = str(value).lower()
-        # เพิ่มคำที่คุณทดสอบ: "stupid", "โง่"
-        bad_words = ["stupid", "idiot", "damn", "โง่", "เลว", "ควาย", "บ้า"]
-        for word in bad_words:
-            if word in text:
-                 return FailResult(error_message=f"Toxic language detected ({word}).", fix_value="***")
         return PassResult()
 
 # ... (ส่วน Output Validators ปล่อย Mock ไว้เหมือนเดิม เพราะเราเน้น Input ก่อน) ...

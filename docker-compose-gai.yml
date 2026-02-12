@@ -50,6 +50,8 @@ services:
   backend:
     build:
       context: ./backend
+      args:
+        GUARDRAILS_TOKEN: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJpSlNlN3ZhNExSbUpxbkZOZUV6VEt0eEZHY1dXdFVuTyIsImFwaUtleUlkIjoiMzEzZGFjNmQtZDE3Yy00OGZkLTllNTItZjdhZDM1N2RjN2U2Iiwic2NvcGUiOiJyZWFkOnBhY2thZ2VzIiwicGVybWlzc2lvbnMiOlsidGhyZWF0X3Rlc3Rlcl9pbnZpdGU6dHJ1ZSJdLCJpYXQiOjE3NzA4NzA2NjcsImV4cCI6NDkyNDQ3MDY2N30.DOijp5oC0pZZFhmrRkXGw00GlNV3dnWfXOgbLtBIofs
     ports:
       - "8000:8000"
     volumes:

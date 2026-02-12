@@ -12,3 +12,19 @@ COPY . .
 
 # สั่งรัน FastAPI
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+# -----------------------------------------------------------------------------
+# ✅ Install Guardrails Hub Validators (ถาวร)
+# -----------------------------------------------------------------------------
+ARG GUARDRAILS_TOKEN
+RUN if [ -n "$GUARDRAILS_TOKEN" ]; then \
+    guardrails configure --token $GUARDRAILS_TOKEN --disable-metrics --disable-remote-inferencing && \
+    guardrails hub install hub://guardrails/detect_pii && \
+    guardrails hub install hub://tryolabs/restricttotopic && \
+    guardrails hub install hub://guardrails/detect_jailbreak && \
+    guardrails hub install hub://guardrails/self_check && \
+    guardrails hub install hub://guardrails/toxic_language && \
+    guardrails hub install hub://guardrails/competitor_check; \
+    else \
+    echo "⚠️ GUARDRAILS_TOKEN not provided. Skipping Hub installation."; \
+    fi
