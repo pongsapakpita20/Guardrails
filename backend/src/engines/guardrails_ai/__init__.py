@@ -1,1 +1,1 @@
-from .engine import GuardrailsAIEngine
+from .guardrails_ai import GuardrailsAIEngine

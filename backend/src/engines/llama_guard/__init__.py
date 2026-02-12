@@ -1,1 +1,1 @@
-from .engine import LlamaGuardEngine
+from .llama_guard import LlamaGuardEngine
