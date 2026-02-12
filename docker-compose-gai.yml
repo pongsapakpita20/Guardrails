@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   # -------------------------
-  # 1. Ollama (เผื่อใช้)
+  # 1. Ollama (เก็บไว้เผื่อใช้)
   # -------------------------
   ollama:
     image: ollama/ollama:latest
@@ -23,7 +23,7 @@ services:
       - ai-net
 
   # -------------------------
-  # 2. GPUStack (Server + Worker) ✅ แก้แล้ว
+  # 2. GPUStack Manager (หัวหน้า - ไม่มี GPU) 🧠
   # -------------------------
   gpustack:
     image: gpustack/gpustack:latest
@@ -33,12 +33,36 @@ services:
       - gpustack_data:/var/lib/gpustack
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      # ✅ ล็อก Token ไว้
+      # ตั้งค่าความเป็นหัวหน้า
       - GPUSTACK_TOKEN=mysecrettoken123
-      # ❌ ลบบรรทัด GPUSTACK_SERVER_URL ออก! (เพื่อให้มันรู้ตัวว่าเป็น Server)
-      
-      # ✅ ตั้งรหัส Admin
       - GPUSTACK_ADMIN_PASSWORD=Qwerty@1234
+      # ❌ ห้ามใส่ SERVER_URL ที่นี่
+    networks:
+      - ai-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------
+  # 3. GPUStack Worker (ลูกน้อง - มี GPU) 💪
+  # -------------------------
+  gpustack-worker:
+    image: gpustack/gpustack:latest
+    # ไม่ต้องเปิด Port เพราะมันจะวิ่งไปหาหัวหน้าเอง
+    volumes:
+      # แยก Volume Cache โมเดลออกมา หรือจะใช้ร่วมกันก็ได้ (แยกชัวร์กว่าเรื่อง Lock)
+      - gpustack_worker_data:/var/lib/gpustack
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # ตั้งค่าความเป็นลูกน้อง
+      - GPUSTACK_TOKEN=mysecrettoken123
+      - GPUSTACK_SERVER_URL=http://gpustack:80
+      - GPUSTACK_WORKER_NAME=docker-worker-1
+      # บังคับ NVIDIA
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
     deploy:
       resources:
         reservations:
@@ -46,12 +70,13 @@ services:
             - driver: nvidia
               count: all
               capabilities: [ gpu ]
-    ipc: host
+    depends_on:
+      - gpustack
     networks:
       - ai-net
 
   # -------------------------
-  # 3. Backend
+  # 4. Backend
   # -------------------------
   backend:
     build:
@@ -63,17 +88,15 @@ services:
     environment:
       - OLLAMA_URL=http://ollama:11434
       - GUARD_ENGINE=guardrails_ai
-      # 👇 Backend ยังต้องชี้ไปที่ gpustack เหมือนเดิม (ถูกแล้ว)
       - GPUSTACK_URL=http://gpustack:80/v1
       - GPUSTACK_API_KEY=mysecrettoken123
     depends_on:
-      - ollama
       - gpustack
     networks:
       - ai-net
 
   # -------------------------
-  # 4. Frontend
+  # 5. Frontend
   # -------------------------
   frontend:
     build:
@@ -93,6 +116,7 @@ services:
 volumes:
   ollama_storage:
   gpustack_data:
+  gpustack_worker_data: # เพิ่ม Volume สำหรับ Worker
 
 networks:
   ai-net:
