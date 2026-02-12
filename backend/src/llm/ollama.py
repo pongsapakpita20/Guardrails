@@ -20,7 +20,22 @@ class OllamaService(BaseLLMService):
         except Exception as e:
             print(f"⚠️ Ollama Error: {e}")
             return []
-
+    def pull_model(self, model_name: str) -> bool:
+        """สั่ง Ollama ให้ไปโหลดโมเดลจาก Registry"""
+        print(f"⬇️ Pulling model: {model_name}...")
+        payload = {"name": model_name, "stream": False} # Stream False เพื่อรอจนเสร็จ (หรือจะทำ Background Task ก็ได้)
+        try:
+            # หมายเหตุ: การ Pull โมเดลใหญ่อาจใช้เวลานานมาก จน Timeout ได้
+            # ใน Production ควรทำเป็น Background Task แต่เบื้องต้นยิงไปก่อน
+            requests.post(f"{self.base_url}/api/pull", json=payload, timeout=1) 
+            # เราตั้ง timeout สั้นๆ เพื่อแค่ 'Trigger' ให้มันเริ่มโหลด แล้วปล่อยให้ Backend จัดการต่อ
+            return True
+        except requests.exceptions.ReadTimeout:
+            # Timeout คือเรื่องปกติสำหรับการ Trigger pull
+            return True 
+        except Exception as e:
+            print(f"❌ Pull failed: {e}")
+            return False
     async def generate(self, prompt: str, system_prompt: str = "", model_name: str = "") -> str:
         payload = {
             "model": model_name,
