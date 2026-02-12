@@ -1,5 +1,4 @@
-from typing import Dict, Any
-import re
+from typing import Dict, Any, List
 from guardrails.validators import ( # type: ignore
     Validator,
     register_validator,
@@ -8,64 +7,95 @@ from guardrails.validators import ( # type: ignore
     FailResult,
 )
 
-# ==========================================
-# 🛡️ ZONE 1: Custom Validators (Input Rails)
-# ==========================================
-
-@register_validator(name="mock_jailbreak", data_type="string")
-class MockJailbreak(Validator):
-    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
-        triggers = ["ignore previous", "bypass", "system prompt", "jailbreak"]
-        if any(t in value.lower() for t in triggers):
-            return FailResult(error_message="Jailbreak attempt detected.", fix_value="")
-        return PassResult()
-
-@register_validator(name="mock_profanity", data_type="string")
-class MockProfanity(Validator):
-    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
-        bad_words = ["เลว", "โง่", "stupid", "idiot", "damn"]
-        if any(w in value.lower() for w in bad_words):
-            return FailResult(
-                error_message=f"Profanity found: {value}", fix_value="***"
-            )
-        return PassResult()
-
-@register_validator(name="mock_pii", data_type="string")
-class MockPII(Validator):
-    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
-        if re.search(r"\d{10}", value):
-            return FailResult(
-                error_message="PII detected (Phone Number).", fix_value="[REDACTED]"
-            )
-        return PassResult()
-
-@register_validator(name="mock_topic", data_type="string")
-class MockTopic(Validator):
-    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
-        forbidden = ["การเมือง", "politics", "crypto", "bitcoin"]
-        if any(f in value.lower() for f in forbidden):
-            return FailResult(error_message="Off-topic content detected.", fix_value="")
-        return PassResult()
-
-@register_validator(name="mock_gibberish", data_type="string")
-class MockGibberish(Validator):
-    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
-        if len(value) > 10 and len(set(value.lower())) < 4:
-            return FailResult(error_message="Gibberish input detected.", fix_value="")
-        return PassResult()
+# Import from Hub (Assumes installation inside Docker)
+try:
+    from guardrails.hub import DetectPII
+    from guardrails.hub import RestrictToTopic
+    from guardrails.hub import DetectJailbreak
+    from guardrails.hub import SelfCheck
+    from guardrails.hub import ToxicLanguage
+    from guardrails.hub import CompetitorCheck
+except ImportError:
+    print("⚠️ Warning: Guardrails Hub validators not installed. Please run 'guardrails hub install ...'")
+    # Define dummy classes to prevent crash if not installed
+    class DetectPII(Validator): pass
+    class RestrictToTopic(Validator): pass
+    class DetectJailbreak(Validator): pass
+    class SelfCheck(Validator): pass
+    class ToxicLanguage(Validator): pass
+    class CompetitorCheck(Validator): pass
 
 # ==========================================
-# 🛡️ ZONE 2: Custom Validators (Output Rails)
+# 🛡️ ZONE 1: Input Rails (Wrappers)
 # ==========================================
-@register_validator(name="mock_hallucination", data_type="string")
-class MockHallucination(Validator):
-    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
-        if "flat" in value.lower() and "earth" in value.lower():
-            return FailResult(
-                error_message="Hallucination detected (Fact Check).", fix_value=""
-            )
-        return PassResult()
 
+# 1.1 PII
+@register_validator(name="hub_pii", data_type="string")
+class HubPII(Validator):
+    def __init__(self, piis: List[str] = None, on_fail: str = "exception"):
+        super().__init__(on_fail=on_fail)
+        # Default entities commonly used
+        self.validator = DetectPII(pii_entities=piis or ["PHONE_NUMBER", "EMAIL_ADDRESS", "CREDIT_CARD"], on_fail=on_fail)
+
+    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
+        return self.validator.validate(value, metadata)
+
+# 1.2 Off-Topic
+@register_validator(name="hub_topic", data_type="string")
+class HubTopic(Validator):
+    def __init__(self, valid_topics: List[str] = None, invalid_topics: List[str] = None, on_fail: str = "exception", **kwargs):
+        super().__init__(on_fail=on_fail)
+        # RestrictToTopic might need 'llm_callable'passed via kwargs or set globally
+        self.validator = RestrictToTopic(valid_topics=valid_topics or [], invalid_topics=invalid_topics or [], on_fail=on_fail, **kwargs)
+
+    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
+        return self.validator.validate(value, metadata)
+
+# 1.3 Jailbreak
+@register_validator(name="hub_jailbreak", data_type="string")
+class HubJailbreak(Validator):
+    def __init__(self, on_fail: str = "exception", **kwargs):
+        super().__init__(on_fail=on_fail)
+        self.validator = DetectJailbreak(on_fail=on_fail, **kwargs)
+
+    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
+        return self.validator.validate(value, metadata)
+
+# ==========================================
+# 🛡️ ZONE 2: Output Rails (Wrappers)
+# ==========================================
+
+# 2.1 Hallucination (SelfCheck)
+@register_validator(name="hub_hallucination", data_type="string")
+class HubHallucination(Validator):
+    def __init__(self, on_fail: str = "exception", **kwargs):
+        super().__init__(on_fail=on_fail)
+        self.validator = SelfCheck(on_fail=on_fail, **kwargs)
+
+    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
+        return self.validator.validate(value, metadata)
+
+# 2.2 Profanity & Toxicity
+@register_validator(name="hub_toxicity", data_type="string")
+class HubToxicity(Validator):
+    def __init__(self, threshold: float = 0.5, on_fail: str = "exception", **kwargs):
+        super().__init__(on_fail=on_fail)
+        self.validator = ToxicLanguage(threshold=threshold, validation_method="sentence", on_fail=on_fail, **kwargs)
+
+    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
+        return self.validator.validate(value, metadata)
+
+# 2.3 Competitor Check
+@register_validator(name="hub_competitor", data_type="string")
+class HubCompetitor(Validator):
+    def __init__(self, competitors: List[str] = None, on_fail: str = "exception", **kwargs):
+        super().__init__(on_fail=on_fail)
+        self.validator = CompetitorCheck(competitors=competitors or [], on_fail=on_fail, **kwargs)
+
+    def validate(self, value: Any, metadata: Dict) -> ValidationResult:
+        return self.validator.validate(value, metadata)
+
+# 2.4 JSON Format (Keep simple helper)
 @register_validator(name="mock_json_format", data_type="string")
 class MockJSONFormat(Validator):
     def validate(self, value: Any, metadata: Dict) -> ValidationResult:

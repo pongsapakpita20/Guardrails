@@ -11,12 +11,12 @@ services:
       - ./ollama/entrypoint.sh:/entrypoint.sh
     # 👇 2. สั่งให้รัน script นี้เป็นอันดับแรก
     # สั่งลบ \r ออกจากไฟล์ก่อน แล้วค่อยรัน
-    entrypoint: ["/bin/bash", "-c", "tr -d '\\r' < /entrypoint.sh | bash"]
+    entrypoint: [ "/bin/bash", "-c", "tr -d '\\r' < /entrypoint.sh | bash" ]
     networks:
       - ai-net
 
   backend:
-    build: 
+    build:
       context: ./backend
     ports:
       - "8000:8000"
@@ -26,6 +26,7 @@ services:
       # ใช้ชื่อ service 'ollama' แทน localhost หรือ IP
       - OLLAMA_URL=http://ollama:11434
       - GUARD_ENGINE=guardrails_ai
+      - GUARDRAILS_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJpSlNlN3ZhNExSbUpxbkZOZUV6VEt0eEZHY1dXdFVuTyIsImFwaUtleUlkIjoiMzEzZGFjNmQtZDE3Yy00OGZkLTllNTItZjdhZDM1N2RjN2U2Iiwic2NvcGUiOiJyZWFkOnBhY2thZ2VzIiwicGVybWlzc2lvbnMiOlsidGhyZWF0X3Rlc3Rlcl9pbnZpdGU6dHJ1ZSJdLCJpYXQiOjE3NzA4NzA2NjcsImV4cCI6NDkyNDQ3MDY2N30.DOijp5oC0pZZFhmrRkXGw00GlNV3dnWfXOgbLtBIofs
     depends_on:
       - ollama
     networks:
@@ -48,6 +49,7 @@ services:
 
 volumes:
   ollama_storage:
+
 
 networks:
   ai-net:
