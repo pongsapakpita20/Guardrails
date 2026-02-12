@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   # -------------------------
-  # 1. Ollama (Local LLM)
+  # 1. Ollama (เผื่อใช้)
   # -------------------------
   ollama:
     image: ollama/ollama:latest
@@ -23,7 +23,7 @@ services:
       - ai-net
 
   # -------------------------
-  # 2. GPUStack (Manager) ✨ เพิ่มใหม่
+  # 2. GPUStack (Server + Worker) ✅ แก้แล้ว
   # -------------------------
   gpustack:
     image: gpustack/gpustack:latest
@@ -31,9 +31,14 @@ services:
       - "10101:80"
     volumes:
       - gpustack_data:/var/lib/gpustack
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - GPUSTACK_USERNAME=admin
-      - GPUSTACK_PASSWORD=admin123
+      # ✅ ล็อก Token ไว้
+      - GPUSTACK_TOKEN=mysecrettoken123
+      # ❌ ลบบรรทัด GPUSTACK_SERVER_URL ออก! (เพื่อให้มันรู้ตัวว่าเป็น Server)
+      
+      # ✅ ตั้งรหัส Admin
+      - GPUSTACK_ADMIN_PASSWORD=Qwerty@1234
     deploy:
       resources:
         reservations:
@@ -44,8 +49,9 @@ services:
     ipc: host
     networks:
       - ai-net
+
   # -------------------------
-  # 3. Backend (Python API)
+  # 3. Backend
   # -------------------------
   backend:
     build:
@@ -57,9 +63,9 @@ services:
     environment:
       - OLLAMA_URL=http://ollama:11434
       - GUARD_ENGINE=guardrails_ai
-      - GUARDRAILS_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJpSlNlN3ZhNExSbUpxbkZOZUV6VEt0eEZHY1dXdFVuTyIsImFwaUtleUlkIjoiMzEzZGFjNmQtZDE3Yy00OGZkLTllNTItZjdhZDM1N2RjN2U2Iiwic2NvcGUiOiJyZWFkOnBhY2thZ2VzIiwicGVybWlzc2lvbnMiOlsidGhyZWF0X3Rlc3Rlcl9pbnZpdGU6dHJ1ZSJdLCJpYXQiOjE3NzA4NzA2NjcsImV4cCI6NDkyNDQ3MDY2N30.DOijp5oC0pZZFhmrRkXGw00GlNV3dnWfXOgbLtBIofs
-      # 👇 แก้ตรงนี้: เรียกชื่อ Service ตรงๆ (ภายใน Port 80)
+      # 👇 Backend ยังต้องชี้ไปที่ gpustack เหมือนเดิม (ถูกแล้ว)
       - GPUSTACK_URL=http://gpustack:80/v1
+      - GPUSTACK_API_KEY=mysecrettoken123
     depends_on:
       - ollama
       - gpustack
@@ -67,7 +73,7 @@ services:
       - ai-net
 
   # -------------------------
-  # 4. Frontend (React)
+  # 4. Frontend
   # -------------------------
   frontend:
     build:
@@ -87,8 +93,6 @@ services:
 volumes:
   ollama_storage:
   gpustack_data:
-    # สร้าง Volume เก็บข้อมูล GPUStack
-
 
 networks:
   ai-net:
