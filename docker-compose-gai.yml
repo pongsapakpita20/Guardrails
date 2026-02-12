@@ -10,7 +10,8 @@ services:
       # 👇 1. Mount ไฟล์ script เข้าไปใน container
       - ./ollama/entrypoint.sh:/entrypoint.sh
     # 👇 2. สั่งให้รัน script นี้เป็นอันดับแรก
-    entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    # สั่งลบ \r ออกจากไฟล์ก่อน แล้วค่อยรัน
+    entrypoint: ["/bin/bash", "-c", "tr -d '\\r' < /entrypoint.sh | bash"]
     networks:
       - ai-net
 

@@ -57,7 +57,6 @@ class MockGibberish(Validator):
 # ==========================================
 # 🛡️ ZONE 2: Custom Validators (Output Rails)
 # ==========================================
-
 @register_validator(name="mock_hallucination", data_type="string")
 class MockHallucination(Validator):
     def validate(self, value: Any, metadata: Dict) -> ValidationResult:
