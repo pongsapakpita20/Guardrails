@@ -21,7 +21,7 @@ done
 echo " Ollama is ready !"
 
 # 3. Pull Model (Check if exists first)
-MODEL_NAME="qwen3:1.7b"
+MODEL_NAME="scb10x/typhoon2.5-qwen3-4b"
 
 if curl -s http://localhost:11434/api/tags | grep -q "$MODEL_NAME"; then
     echo "Model $MODEL_NAME already exists. Skipping pull."

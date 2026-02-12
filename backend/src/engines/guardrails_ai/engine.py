@@ -68,7 +68,7 @@ class GuardrailsAIEngine(BaseGuardEngine):
         # หมายเหตุ: ตรงนี้ผมคง model ตามที่คุณส่งมา (qwen3) 
         # แต่ถ้ามัน error แนะนำให้เปลี่ยนเป็น qwen2.5:7b นะครับ
         payload = {
-            "model": "qwen3:1.7b", 
+            "model": "scb10x/typhoon2.5-qwen3-4b", 
             "prompt": message,
             "system": system_prompt,
             "stream": False,
