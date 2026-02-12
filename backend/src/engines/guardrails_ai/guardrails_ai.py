@@ -61,16 +61,17 @@ class GuardrailsAIEngine(BaseGuardEngine):
         # -------------------------------------------------
         ollama_url = os.getenv("OLLAMA_URL", "http://ollama:11434")
         
-        system_prompt = "You are a helpful assistant."
-        if config.get("json_format"):
-            system_prompt += " You must answer in JSON format only."
+        from ...config import MODEL_NAME, SYSTEM_PROMPT
 
-        # หมายเหตุ: ตรงนี้ผมคง model ตามที่คุณส่งมา (qwen3) 
-        # แต่ถ้ามัน error แนะนำให้เปลี่ยนเป็น qwen2.5:7b นะครับ
+        # ปรับ System Prompt ตาม Config และเงื่อนไข JSON
+        current_system_prompt = SYSTEM_PROMPT
+        if config.get("json_format"):
+            current_system_prompt += " \n(IMPORTANT: You must answer in JSON format only.)"
+
         payload = {
-            "model": "scb10x/typhoon2.5-qwen3-4b", 
+            "model": MODEL_NAME, 
             "prompt": message,
-            "system": system_prompt,
+            "system": current_system_prompt,
             "stream": False,
         }
 
