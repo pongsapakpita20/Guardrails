@@ -1,19 +1,10 @@
-import os
 from .base import BaseGuardEngine
-from .llama_guard.engine import LlamaGuardEngine
-from .nemo.engine import NemoGuardEngine # หรือ nemo.py แล้วแต่ชื่อไฟล์คุณ
-from .guardrails_ai import GuardrailsAIEngine # <--- Import เข้ามา
+from .factory import EngineFactory
 
-def get_engine() -> BaseGuardEngine:
-    engine_type = os.getenv("GUARD_ENGINE", "llama").lower()
-    
-    print(f"🔧 Initializing Guard Engine: {engine_type.upper()}")
-    
-    if engine_type == "nemo":
-        return NemoGuardEngine()
-    elif engine_type == "guardrails_ai":
-        return GuardrailsAIEngine()  # <-- เปิดใช้งาน
-    else:
-        return LlamaGuardEngine()
+# ฟังก์ชันช่วยเรียกใช้ (Optional Helper)
+def get_engine_by_id(engine_id: str) -> BaseGuardEngine:
+    return EngineFactory.get_engine(engine_id)
 
-active_engine = get_engine()
+# ดึงรายการ Engine ทั้งหมด
+def get_engine_list():
+    return EngineFactory.get_available_engines()
