@@ -1,95 +1,189 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react'; // เพิ่ม useCallback
+import Sidebar from './components/Sidebar';
+import ChatArea from './components/ChatArea';
+import LogPanel from './components/LogPanel';
+import type { Option, SwitchInfo, ChatMessage, LogEntry, SystemStatus } from './types';
 import './App.css';
 
-interface SwitchInfo {
-  key: string;
-  label: string;
-  default: boolean;
-  description?: string;
-}
-
-interface ChatMessage {
-  sender: "User" | "AI" | "System";
-  text: string;
-  status?: "success" | "blocked" | "error";
-  violation?: string;
-  timestamp: string;
-}
-
-interface LogEntry {
-  id: number;
-  timestamp: string;
-  message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-}
-
 function App() {
+  // --- State ---
+  const [systemStatus, setSystemStatus] = useState<SystemStatus>('initializing');
+  const [isBackendConnected, setIsBackendConnected] = useState(false); // เช็คว่าต่อ Backend ติดไหม
+  
   const [input, setInput] = useState("");
   const [chatLog, setChatLog] = useState<ChatMessage[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Config State
+  const [frameworks, setFrameworks] = useState<Option[]>([]);
+  const [selectedFramework, setSelectedFramework] = useState<string>("");
+  const [providers, setProviders] = useState<Option[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string>("");
+  const [models, setModels] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [isModelsLoading, setIsModelsLoading] = useState(false);
+  
   const [availableSwitches, setAvailableSwitches] = useState<SwitchInfo[]>([]);
   const [config, setConfig] = useState<Record<string, boolean>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const logsEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatLog, isLoading]);
-
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
-
-  useEffect(() => {
-    const fetchConfig = async () => {
-      addLog("System initializing...", "info");
-      try {
-        const res = await fetch("http://localhost:8000/config/switches");
-        const switches: SwitchInfo[] = await res.json();
-        setAvailableSwitches(switches);
-        const initialConfig: Record<string, boolean> = {};
-        switches.forEach(sw => initialConfig[sw.key] = sw.default);
-        setConfig(initialConfig);
-        addLog(`Loaded configuration: ${switches.length} rules found`, "success");
-      } catch (error) {
-        console.error("Failed to load switches:", error);
-        addLog("Failed to connect to backend API", "error");
-        setChatLog(prev => [...prev, { 
-          sender: "System", 
-          text: "⚠️ ไม่สามารถเชื่อมต่อกับ Backend ได้", 
-          status: "error",
-          timestamp: new Date().toLocaleTimeString()
-        }]);
-      }
-    };
-    fetchConfig();
-  }, []);
 
   const addLog = (message: string, type: 'info' | 'success' | 'warning' | 'error' = 'info') => {
     setLogs(prev => [...prev, {
       id: Date.now(),
-      timestamp: new Date().toLocaleTimeString([], { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      timestamp: new Date().toLocaleTimeString('th-TH', { hour12: false }),
       message,
       type
     }]);
   };
 
+  // --- 🔥 1. ระบบ Auto-Retry Connection (หัวใจสำคัญ) ---
+  const fetchSystemData = useCallback(async () => {
+    try {
+      // 1. ลองยิง Health Check ก่อน
+      const healthRes = await fetch("http://localhost:8000/health");
+      if (!healthRes.ok) throw new Error("Backend not ready");
+
+      // 2. ถ้า Backend ตื่นแล้ว ค่อยดึงข้อมูลจริง
+      const [resFw, resPv] = await Promise.all([
+          fetch("http://localhost:8000/frameworks"),
+          fetch("http://localhost:8000/providers")
+      ]);
+      
+      const fwData = await resFw.json();
+      const pvData = await resPv.json();
+
+      setFrameworks(fwData);
+      if (!selectedFramework && fwData.length > 0) setSelectedFramework(fwData[0].id);
+
+      setProviders(pvData);
+      if (!selectedProvider && pvData.length > 0) setSelectedProvider(pvData[0].id);
+
+      setIsBackendConnected(true); // ✅ เชื่อมต่อสำเร็จ
+      addLog("✅ Connected to Backend System", "success");
+      
+      return true; // บอกว่าทำสำเร็จแล้ว
+
+    } catch (error) {
+      // ถ้าพัง (Backend ยังไม่ตื่น)
+      console.warn("Retrying connection...");
+      setIsBackendConnected(false);
+      return false; // บอกว่ายังไม่สำเร็จ
+    }
+  }, [selectedFramework, selectedProvider]); // Dependencies
+
+  // --- 🔥 2. useEffect วนลูปเช็คจนกว่าจะติด ---
+  useEffect(() => {
+    let intervalId: any;
+
+    const initLoop = async () => {
+      // ลองดึงข้อมูล
+      const success = await fetchSystemData();
+      
+      if (success) {
+        // ถ้าสำเร็จแล้ว ให้หยุดวนลูป (หรือจะวนเช็ค Health ต่อก็ได้ แต่นี่เอาแค่โหลดข้อมูลครั้งแรกพอ)
+        setSystemStatus('ready');
+      } else {
+        // ถ้ายังไม่สำเร็จ ให้ตั้งสถานะเป็น Error ไว้ก่อน แล้วรอ Interval รอบหน้า
+        setSystemStatus('error');
+      }
+    };
+
+    // รันครั้งแรกทันที
+    initLoop();
+
+    // ตั้งเวลาให้ลองใหม่ทุกๆ 3 วินาที ถ้ายังเชื่อมไม่ได้
+    if (!isBackendConnected) {
+        intervalId = setInterval(initLoop, 3000);
+    }
+
+    return () => {
+        if (intervalId) clearInterval(intervalId);
+    };
+  }, [isBackendConnected, fetchSystemData]);
+
+
+  // --- 3. Load Models (เมื่อ Provider เปลี่ยน) ---
+  useEffect(() => {
+    if (!selectedProvider || !isBackendConnected) return; // ถ้า Backend หลุด ไม่ต้องทำ
+    
+    const fetchModels = async () => {
+      setIsModelsLoading(true);
+      try {
+        const res = await fetch(`http://localhost:8000/models/${selectedProvider}`);
+        const data = await res.json();
+        setModels(data.models || []);
+        
+        // Logic เลือกโมเดล: ถ้าตัวเดิมยังมีอยู่ก็ใช้ตัวเดิม ถ้าไม่มีให้ใช้ตัวแรก
+        if (data.models?.length > 0) {
+            if (!data.models.includes(selectedModel)) {
+                setSelectedModel(data.models[0]);
+            }
+        } else {
+            setSelectedModel("");
+            addLog(`⚠️ No models found in ${selectedProvider}`, "warning");
+        }
+      } catch (error) {
+        addLog(`❌ Failed to fetch models`, "error");
+      } finally {
+        setIsModelsLoading(false);
+      }
+    };
+    fetchModels();
+  }, [selectedProvider, isBackendConnected]); // เพิ่ม isBackendConnected เป็น Trigger
+
+  // --- 4. Load Switches (เมื่อ Framework เปลี่ยน) ---
+  useEffect(() => {
+    if (!selectedFramework || !isBackendConnected) return;
+
+    const fetchSwitches = async () => {
+      try {
+        const res = await fetch(`http://localhost:8000/config/switches?framework_id=${selectedFramework}`);
+        const swData = await res.json();
+        setAvailableSwitches(swData);
+        
+        // Preserve existing config if possible, else reset
+        const newConfig: Record<string, boolean> = {};
+        swData.forEach((sw: SwitchInfo) => {
+             // ถ้าเคยตั้งค่าไว้แล้วให้ใช้ค่าเดิม ถ้าไม่เคยให้ใช้ค่า default
+             newConfig[sw.key] = config[sw.key] !== undefined ? config[sw.key] : sw.default;
+        });
+        setConfig(newConfig);
+      } catch (error) {
+        addLog(`❌ Failed to load switches`, "error");
+      }
+    };
+    fetchSwitches();
+  }, [selectedFramework, isBackendConnected]);
+
+  // --- 5. Status Checker Logic ---
+  useEffect(() => {
+     if (!isBackendConnected) {
+         setSystemStatus('error');
+         return;
+     }
+     if (isModelsLoading) {
+         setSystemStatus('loading_model');
+         return;
+     }
+     setSystemStatus('ready');
+  }, [isBackendConnected, isModelsLoading]);
+
+
   const handleToggle = (key: string) => {
-    const newValue = !config[key];
-    setConfig(prev => ({ ...prev, [key]: newValue }));
-    addLog(`Rule updated: ${key} is now ${newValue ? 'ON' : 'OFF'}`, "info");
+    setConfig(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
+    if (systemStatus !== 'ready') {
+        addLog("⚠️ System is not ready. Please wait...", "warning");
+        return;
+    }
+
     const userMsg: ChatMessage = { 
-      sender: "User", 
-      text: input, 
-      status: "success",
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      sender: "User", text: input, status: "success",
+      timestamp: new Date().toLocaleTimeString('th-TH')
     };
     
     setChatLog(prev => [...prev, userMsg]);
@@ -97,170 +191,100 @@ function App() {
     setInput("");
     setIsLoading(true);
 
-    addLog(`📥 Received Input: "${msgToSend.substring(0, 20)}${msgToSend.length > 20 ? '...' : ''}"`, "info");
-    addLog(`🛡️ Checking Input Guardrails...`, "warning");
-
     try {
       const res = await fetch("http://localhost:8000/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msgToSend, config: config }),
+        body: JSON.stringify({ 
+            message: msgToSend, 
+            config: config,
+            framework_id: selectedFramework,
+            provider_id: selectedProvider,
+            model_name: selectedModel
+        }),
       });
       
       const data = await res.json();
       
-      if (data.status === 'blocked') {
-        const isInputBlock = data.violation?.toLowerCase().includes('input') || data.violation?.toLowerCase().includes('jailbreak') || data.violation?.toLowerCase().includes('profanity');
-        
-        if (isInputBlock) {
-             addLog(`🚫 Blocked at Input Stage: ${data.violation}`, "error");
-        } else {
-             addLog(`✅ Input Safe. Sending to LLM...`, "success");
-             addLog(`🤖 LLM Generated Response`, "info");
-             addLog(`🚫 Blocked at Output Stage: ${data.violation}`, "error");
-        }
-      } else {
-        addLog(`✅ Input Safe. Sending to LLM...`, "success");
-        addLog(`🤖 LLM Generated Response`, "info");
-        addLog(`✅ Output Safe. Delivering to user.`, "success");
-      }
-
       setChatLog(prev => [...prev, { 
         sender: "AI", 
         text: data.response,
         status: data.status,
         violation: data.violation,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        timestamp: new Date().toLocaleTimeString('th-TH')
       }]);
 
+      if (data.status === 'blocked') {
+        addLog(`🚫 Blocked: ${data.violation}`, "error");
+      }
+
     } catch (error) {
-      addLog(`🔥 Network/Server Error`, "error");
-      setChatLog(prev => [...prev, { 
-        sender: "System", 
-        text: "Error connecting to server", 
-        status: "error",
-        timestamp: new Date().toLocaleTimeString()
-      }]);
+      addLog(`🔥 Connection Lost`, "error");
+      setIsBackendConnected(false); // ตัด Connection ทันทีเพื่อให้ Auto-Retry ทำงาน
     } finally {
       setIsLoading(false);
     }
   };
-
+  const handleDownloadModel = async (modelName: string) => {
+    addLog(`⬇️ Requesting download for: ${modelName}...`, "info");
+    try {
+        const res = await fetch("http://localhost:8000/model/pull", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                provider_id: selectedProvider,
+                model_name: modelName
+            })
+        });
+        const data = await res.json();
+        if (data.status === 'started') {
+            addLog(`✅ Download started! Please watch the LOGS panel.`, "success");
+            addLog(`ℹ️ Note: This may take several minutes.`, "info");
+        } else {
+            addLog(`⚠️ ${data.message}`, "warning");
+        }
+    } catch (error) {
+        addLog(`❌ Failed to trigger download`, "error");
+    }
+  };
   return (
     <div className="app-container">
-      
-      {/* --- COLUMN 1: LEFT (Settings) --- */}
+      {/* แสดง Overlay ถ้า Backend ยังเชื่อมไม่ได้ 
+          เพื่อให้รู้ว่าระบบกำลังพยายามเชื่อมต่ออยู่ 
+      */}
+      {!isBackendConnected && (
+          <div style={{
+              position: 'fixed', top: 0, left: 0, width: '100%', height: '5px', 
+              background: '#ef4444', zIndex: 9999, 
+              animation: 'pulse 1s infinite'
+          }} title="Trying to connect to backend..." />
+      )}
+
       <div className="panel control-panel">
-        <div className="panel-header" style={{background: '#f8fafc', borderBottom: '1px solid #e2e8f0'}}>
-          <h2 style={{fontSize: '1.1rem', color: '#334155'}}>⚙️ Controls</h2>
-          <span style={{fontSize: '0.75rem', color: '#64748b'}}>
-            {availableSwitches.length > 0 ? `${availableSwitches.length} Rules` : 'Loading...'}
-          </span>
-        </div>
-        
-        <div className="config-list">
-          {availableSwitches.map((sw) => (
-            <div 
-              key={sw.key} 
-              className={`config-item ${config[sw.key] ? 'active' : 'inactive'}`}
-              onClick={() => handleToggle(sw.key)}
-            >
-              <div style={{display:'flex', flexDirection:'column'}}>
-                <span style={{fontWeight: 600}}>{sw.label}</span>
-              </div>
-              <div className={`toggle-switch ${config[sw.key] ? 'on' : 'off'}`}></div>
-            </div>
-          ))}
-        </div>
+        <Sidebar 
+            // Sidebar รับของน้อยลงแล้ว เหลือแค่ Switch
+            availableSwitches={availableSwitches} config={config} handleToggle={handleToggle}
+        />
       </div>
-
-      {/* --- COLUMN 2: CENTER (Chat) --- */}
+      
       <div className="panel chat-panel">
-        <div className="panel-header" style={{background: '#ffffff', borderBottom: '1px solid #f1f5f9', display:'flex', alignItems:'center', gap:'10px'}}>
-          <div style={{width: 32, height: 32, background: '#2563eb', borderRadius: '50%', display:'flex', alignItems:'center', justifyContent:'center', color:'white'}}>🤖</div>
-          <div>
-            <h2 style={{fontSize: '1rem', margin:0}}>AI Guardrails Assistant</h2>
-            <span style={{fontSize: '0.75rem', color: '#10b981'}}>● Online (Protected)</span>
-          </div>
-        </div>
-        
-        <div className="chat-window">
-          {chatLog.length === 0 && (
-            <div className="empty-state">
-              <div style={{fontSize: '3rem'}}>💬</div>
-              <p>สวัสดีครับ! ผมคือ AI ที่มีระบบความปลอดภัย</p>
-              <p style={{fontSize: '0.9rem', color: '#94a3b8'}}>ลองพิมพ์อะไรบางอย่างเพื่อทดสอบ Guardrails ได้เลย</p>
-            </div>
-          )}
-          
-          {chatLog.map((msg, idx) => (
-            <div key={idx} className={`message-row ${msg.sender === "User" ? "user" : "ai"}`}>
-              {msg.sender === "AI" && <div className="avatar ai">🤖</div>}
-              
-              <div className={`message-bubble ${msg.sender === "User" ? "user-msg" : (msg.status === "blocked" ? "blocked-msg" : "ai-msg")}`}>
-                {msg.status === "blocked" && (
-                  <div className="violation-badge">🛡️ BLOCKED: {msg.violation}</div>
-                )}
-                <div style={{whiteSpace: 'pre-wrap'}}>{msg.text}</div>
-                <div className="timestamp">{msg.timestamp}</div>
-              </div>
-
-              {msg.sender === "User" && <div className="avatar user">👤</div>}
-            </div>
-          ))}
-
-          {isLoading && (
-            <div className="message-row ai">
-              <div className="avatar ai">🤖</div>
-              <div className="message-bubble ai-msg loading">
-                <span className="dot">.</span><span className="dot">.</span><span className="dot">.</span>
-              </div>
-            </div>
-          )}
-          <div ref={chatEndRef} />
-        </div>
-        
-        <div className="input-area">
-          <input 
-            type="text" 
-            className="chat-input"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder="พิมพ์ข้อความของคุณ..."
-            disabled={isLoading}
-          />
-          <button className="send-btn" onClick={sendMessage} disabled={isLoading}>
-            {isLoading ? '...' : 'Send'}
-          </button>
-        </div>
+        <ChatArea 
+            chatLog={chatLog} input={input} setInput={setInput} sendMessage={sendMessage} 
+            isLoading={isLoading} systemStatus={systemStatus}
+            
+            // ส่ง Dropdown ไปให้ ChatArea แทน
+            frameworks={frameworks} selectedFramework={selectedFramework} setSelectedFramework={setSelectedFramework}
+            providers={providers} selectedProvider={selectedProvider} setSelectedProvider={setSelectedProvider}
+            models={models} selectedModel={selectedModel} setSelectedModel={setSelectedModel}
+            
+            // ส่งฟังก์ชันโหลดโมเดล
+            onDownloadModel={handleDownloadModel}
+        />
       </div>
 
-      {/* --- COLUMN 3: RIGHT (Logs) --- */}
-      <div className="panel log-panel" style={{ background: '#0f172a', color: '#38bdf8', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '15px', background: '#1e293b', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.9rem', fontWeight: 'bold', fontFamily: 'monospace' }}> {'>'}_ System Logs</span>
-            <button onClick={() => setLogs([])} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.7rem' }}>CLEAR</button>
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: '10px', fontFamily: 'monospace', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {logs.length === 0 && <span style={{color: '#475569', fontStyle: 'italic', textAlign: 'center', marginTop: '20px'}}>-- No Activity --</span>}
-            {logs.map((log) => (
-                <div key={log.id} style={{ display: 'flex', gap: '8px', lineHeight: '1.4' }}>
-                    <span style={{ color: '#64748b', minWidth: '60px', fontSize: '0.75rem' }}>[{log.timestamp}]</span>
-                    <span style={{ 
-                        color: log.type === 'error' ? '#ef4444' : 
-                               log.type === 'success' ? '#4ade80' : 
-                               log.type === 'warning' ? '#facc15' : '#e2e8f0',
-                        wordBreak: 'break-word'
-                    }}>
-                        {log.type === 'info' ? 'ℹ️' : log.type === 'success' ? '✅' : log.type === 'warning' ? '⚡' : '❌'} {log.message}
-                    </span>
-                </div>
-            ))}
-            <div ref={logsEndRef} />
-        </div>
+      <div className="panel log-panel">
+        <LogPanel logs={logs} clearLogs={() => setLogs([])} />
       </div>
-
     </div>
   );
 }

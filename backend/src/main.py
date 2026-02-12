@@ -82,7 +82,10 @@ async def chat_endpoint(request: ChatRequest):
             "response": "System Error: เกิดข้อผิดพลาดภายในระบบ",
             "violation": str(e)
         }
-    
+@app.get("/health")
+async def health_check():
+    """เอาไว้ให้ Frontend ยิงเช็คว่า Server พร้อมหรือยัง"""
+    return {"status": "ok", "message": "Backend is ready"}    
 # ==========================================
 # 4. Endpoint ใหม่: ขอรายชื่อ LLM Providers (Ollama, GPUStack)
 # ==========================================
@@ -101,5 +104,27 @@ async def get_models(provider_id: str):
         return {"provider": provider_id, "models": models}
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+class ModelPullRequest(BaseModel):
+    provider_id: str
+    model_name: str
+
+@app.post("/model/pull")
+async def pull_new_model(req: ModelPullRequest):
+    try:
+        service = LLMFactory.get_service(req.provider_id)
+        
+        # เฉพาะ Ollama ที่เราเขียนฟังก์ชัน pull ไว้
+        if hasattr(service, 'pull_model'):
+            success = service.pull_model(req.model_name)
+            if success:
+                 return {"status": "started", "message": f"Downloading {req.model_name}... Check logs."}
+            else:
+                 raise HTTPException(status_code=500, detail="Failed to trigger download")
+        else:
+             return {"status": "skipped", "message": "This provider does not support direct download via API."}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

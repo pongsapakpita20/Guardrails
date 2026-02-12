@@ -1,11 +1,11 @@
 from typing import List, Dict, Type
 from .base import BaseLLMService
 from .ollama import OllamaService
-
+from .gpustack import GPUStackService
 class LLMFactory:
     _providers = {
         "ollama": OllamaService,
-        # "gpustack": GPUStackService,  <-- อนาคตเพิ่มตรงนี้
+        "gpustack": GPUStackService,
     }
     
     _instances = {}
@@ -29,5 +29,5 @@ class LLMFactory:
     def get_providers(cls) -> List[Dict[str, str]]:
         return [
             {"id": "ollama", "name": "Local Ollama"},
-            # {"id": "gpustack", "name": "GPU Stack"},
+            {"id": "gpustack", "name": "GPU Stack"},
         ]
