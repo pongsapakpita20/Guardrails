@@ -18,40 +18,37 @@ body {
 
 .app-container {
   display: flex;
-  gap: 20px;
-  padding: 20px;
-  height: 100vh;
-  width: 100vw; /* เต็มจอแนวกว้าง */
-  box-sizing: border-box;
-  background-color: var(--bg-color);
+  height: 100vh; /* เต็มความสูงหน้าจอ */
+  width: 100vw;  /* เต็มความกว้าง */
+  background-color: #f1f5f9;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden; /* ห้าม Scroll ที่ตัวแม่ */
 }
-
 /* --- Panel Styles --- */
 .panel {
-  background: var(--card-bg);
-  border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  height: 100%; 
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: hidden; /* ให้ Scroll เกิดขึ้นข้างใน Component ย่อยแทน */
 }
 
 .control-panel {
-  flex: 0 0 280px; 
-  border: 1px solid #e5e7eb;
+  flex: 0 0 280px;
+  border-right: 1px solid #e2e8f0;
+  background: white;
 }
+
+/* กลาง: Chat (ขยายเต็มที่) */
 .chat-panel {
-  flex: 1; /* ให้กินพื้นที่ที่เหลือทั้งหมด */
-  border: 1px solid #e5e7eb;
-  min-width: 400px; /* กันไม่ให้บีบจนเล็กเกิน */
+  flex: 1; 
+  min-width: 400px;
 }
+
+/* ขวา: Logs (ขนาดคงที่) */
 .log-panel {
-  flex: 0 0 320px; /* กว้างกว่า Settings หน่อยจะได้อ่าน Log สบาย */
-  background: #0f172a; /* สีพื้นหลังดำ Hacker style */
-  border-radius: 16px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  border: 1px solid #334155;
+  flex: 0 0 320px; /* เพิ่มความกว้างให้ Log หน่อย */
+  border-left: 1px solid #334155;
+  background: #0f172a;
 }
 .panel-header {
   padding: 20px;

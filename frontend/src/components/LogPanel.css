@@ -1,10 +1,60 @@
-.log-panel { flex: 0 0 300px; background: #0f172a; color: #38bdf8; display: flex; flex-direction: column; border-left: 1px solid #334155; }
-.log-header { padding: 10px 15px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; font-family: monospace; font-size: 0.85rem; font-weight: bold; }
-.log-header button { background: transparent; border: none; color: #94a3b8; cursor: pointer; font-size: 0.7rem; }
-.log-content { flex: 1; overflow-y: auto; padding: 10px; font-family: monospace; font-size: 0.8rem; display: flex; flex-direction: column; gap: 6px; }
-.log-entry { display: flex; gap: 8px; line-height: 1.4; }
-.log-time { color: #64748b; min-width: 60px; font-size: 0.75rem; }
-.log-msg.error { color: #ef4444; }
+/* frontend/src/components/LogPanel.css */
+
+.log-panel-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%; /* ยืดเต็ม Panel */
+  background: #0f172a;
+  color: #38bdf8;
+}
+
+.log-header {
+  flex: 0 0 auto; /* Header สูงคงที่ */
+  padding: 12px 15px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+
+.log-header button {
+  background: transparent;
+  border: 1px solid #475569;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: 0.2s;
+}
+.log-header button:hover { background: #334155; color: white; }
+
+.log-content {
+  flex: 1; /* ยืดกินพื้นที่ที่เหลือ */
+  overflow-y: auto; /* Scroll ได้ */
+  padding: 10px;
+  font-family: 'JetBrains Mono', monospace; /* ถ้าไม่มีฟอนต์นี้มันจะใช้ monospace ธรรมดา */
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Custom Scrollbar for Logs */
+.log-content::-webkit-scrollbar { width: 8px; }
+.log-content::-webkit-scrollbar-track { background: #0f172a; }
+.log-content::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+.log-content::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+.log-entry { display: flex; gap: 8px; line-height: 1.5; border-bottom: 1px solid rgba(255,255,255,0.03); padding-bottom: 2px;}
+.log-time { color: #64748b; min-width: 65px; font-size: 0.7rem; opacity: 0.8; }
+.log-msg { word-break: break-all; }
+.log-msg.error { color: #f87171; }
 .log-msg.success { color: #4ade80; }
 .log-msg.warning { color: #facc15; }
-.no-logs { color: #475569; font-style: italic; text-align: center; margin-top: 20px; }
+.no-logs { color: #475569; font-style: italic; text-align: center; margin-top: 50%; transform: translateY(-50%); }

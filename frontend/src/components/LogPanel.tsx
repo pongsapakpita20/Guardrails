@@ -10,7 +10,7 @@ const LogPanel: React.FC<{ logs: LogEntry[], clearLogs: () => void }> = ({ logs,
     }, [logs]);
 
     return (
-        <div className="log-panel">
+        <div className="log-panel-container">
             <div className="log-header">
                 <span>{'>'}_ System Logs</span>
                 <button onClick={clearLogs}>CLEAR</button>
