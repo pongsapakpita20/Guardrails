@@ -10,7 +10,8 @@ services:
       - "11434:11434"
     volumes:
       - ollama_storage:/root/.ollama
-      - ./ollama/entrypoint.sh:/entrypoint.sh
+
+      - ./backend/src/llm/entrypoint.sh:/entrypoint.sh
     entrypoint: [ "/bin/bash", "-c", "tr -d '\\r' < /entrypoint.sh | bash" ]
     deploy:
       resources:
