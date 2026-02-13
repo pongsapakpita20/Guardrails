@@ -55,6 +55,10 @@ services:
       # แยก Volume Cache โมเดลออกมา หรือจะใช้ร่วมกันก็ได้ (แยกชัวร์กว่าเรื่อง Lock)
       - gpustack_worker_data:/var/lib/gpustack
       - /var/run/docker.sock:/var/run/docker.sock
+      - type: tmpfs
+        target: /dev/shm
+        tmpfs:
+          size: 4096000000 # 4GB
     environment:
       # ตั้งค่าความเป็นลูกน้อง
       - GPUSTACK_TOKEN=mysecrettoken123
@@ -63,6 +67,8 @@ services:
       # บังคับ NVIDIA
       - NVIDIA_VISIBLE_DEVICES=all
       - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - VLLM_HOST=0.0.0.0
+      - GPUSTACK_VLLM_ARGS=--host 0.0.0.0
     deploy:
       resources:
         reservations:
