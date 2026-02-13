@@ -3,3 +3,4 @@ uvicorn
 pydantic
 requests
 guardrails-ai
+rich<14.0.0
