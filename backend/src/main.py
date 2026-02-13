@@ -44,7 +44,7 @@ class ChatRequest(BaseModel):
     config: Dict[str, bool]
     framework_id: str = "guardrails_ai"  # <--- เพิ่มช่องนี้
     provider_id: str = "ollama"      # <--- เพิ่ม
-    model_name: str = "qwen2.5:7b"   # <--- เพิ่ม (Default)
+    model_name: str = "scb10x/typhoon2.5-qwen3-4b"   # <--- เพิ่ม (Default)
 
 @app.post("/chat")
 async def chat_endpoint(request: ChatRequest):

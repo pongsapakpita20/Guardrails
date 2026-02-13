@@ -41,7 +41,7 @@ services:
     networks:
       - ai-net
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:80/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -119,7 +119,8 @@ services:
 volumes:
   ollama_storage:
   gpustack_data:
-  gpustack_worker_data: # เพิ่ม Volume สำหรับ Worker
+  gpustack_worker_data:
+    # เพิ่ม Volume สำหรับ Worker
 
 networks:
   ai-net:
