@@ -69,8 +69,8 @@ class GuardrailsAIEngine(BaseGuardEngine):
 
         if config.get("off_topic"):
             input_validators.append(HubTopic(
-                valid_topics=["General", "Technology", "Business"], 
-                invalid_topics=["Politics", "Religion", "Gambling"],
+                valid_topics=["SRT Services", "Train Schedule", "Ticket Booking", "Parcel Delivery", "General"], 
+                invalid_topics=["Politics", "Religion", "Gambling", "Airlines", "Bus Services"],
                 on_fail="exception",
                 llm_callable=my_llm_callable
             ))
@@ -117,7 +117,7 @@ class GuardrailsAIEngine(BaseGuardEngine):
         # 2.3 Competitor Check (Output Rail)
         if config.get("competitor_check"):
              output_validators.append(HubCompetitor(
-                 competitors=["CompetitorA", "CompetitorB", "RivalCorp"], # ตัวอย่าง
+                 competitors=["Nakhonchai Air", "AirAsia", "Nok Air", "Thai Lion Air", "Grab", "Uber", "Bolt", "Sombat Tour"], 
                  on_fail="exception",
                  llm_callable=my_llm_callable
              ))

@@ -65,42 +65,95 @@ class NemoGuardEngine(BaseGuardEngine):
 
     def _generate_colang(self, config: Dict[str, bool]) -> str:
         colang = """
-        # Basic flows
+        # ==========================================
+        # 1. Politics (การเมือง) - TH & EN
+        # ==========================================
         define user ask about politics
             "Who will win the election?"
             "What do you think about the government?"
-        
-        define bot refuse politics
-            "I cannot answer questions about politics."
+            "พรรคไหนดีกว่ากัน"
+            "ใครจะเป็นนายกคนต่อไป"
+            "คิดยังไงกับม็อบ"
+            "การเมืองช่วงนี้เป็นไง"
 
+        define bot refuse politics
+            "I cannot answer questions about politics. I am an SRT service assistant."
+            "ขออภัยครับ กระผมไม่สามารถแสดงความคิดเห็นเรื่องการเมืองได้ครับ ผมยินดีให้ข้อมูลบริการรถไฟครับ"
+
+        # ==========================================
+        # 2. Competitors (คู่แข่ง: เครื่องบิน, รถทัวร์) - TH & EN
+        # ==========================================
         define user ask about competitor
-            "Is CompetitorA better?"
-            "Compare with RivalCorp"
-        
+            "Is flying faster?"
+            "AirAsia is cheaper"
+            "Nakhonchai Air service is better"
+            "นั่งเครื่องบินเร็วกว่าไหม"
+            "รถทัวร์ถูกกว่าหรือเปล่า"
+            "นครชัยแอร์ดีกว่ามั้ย"
+            "ไปเครื่องบินดีกว่ามั้ย"
+            "เทียบกับสมบัติทัวร์ให้หน่อย"
+
         define bot refuse competitor
-             "I cannot answer questions about competitors."
-        
+             "I cannot compare with other transport providers. Please check their websites directly."
+             "ขออภัยครับ กระผมไม่สามารถเปรียบเทียบกับผู้ให้บริการอื่นได้ครับ แต่หากเป็นเรื่องรถไฟ กระผมยินดีบริการเต็มที่ครับ"
+
+        # ==========================================
+        # 3. Off-Topic (นอกเรื่อง: หวย, ดูดวง) - TH & EN
+        # ==========================================
+        define user ask off topic
+            "What represent lottery number?"
+            "Lucky number for tomorrow"
+            "หวยออกอะไร"
+            "ขอเลขเด็ดหน่อย"
+            "ดวงวันนี้เป็นไง"
+            "อากาศเชียงใหม่เป็นไง"
+
+        define bot refuse off topic
+            "I can only help with SRT train services."
+            "กระผมให้ข้อมูลได้เฉพาะเรื่องการเดินรถไฟและการจองตั๋วครับผม"
+
+        # ==========================================
+        # Flows Definitions
+        # ==========================================
         define flow politics
             user ask about politics
             bot refuse politics
         
+        define flow competitor_check
+            user ask about competitor
+            bot refuse competitor
+            
+        define flow off_topic_check
+            user ask off topic
+            bot refuse off topic
         """
         
+        # Note: In dynamic generation, we append flows based on config.
+        # But here I defined basic blocks directly for clarity.
+        # Real logic should append 'define flow ...' only if config is True.
+        
+        # Reset and build dynamically to respect config (Cleaner approach)
+        colang_body = ""
+        
         if config.get("off_topic"):
-            colang += """
-            define flow off_topic_check
-                user ask about politics
-                bot refuse politics
-            """
+             colang_body += """
+             define flow off_topic_flow
+                 user ask about politics
+                 bot refuse politics
+             
+             define flow lottery_flow
+                 user ask off topic
+                 bot refuse off topic
+             """
             
         if config.get("competitor_check"):
-            colang += """
-            define flow competitor_check
+            colang_body += """
+            define flow competitor_flow
                 user ask about competitor
                 bot refuse competitor
             """
             
-        return colang
+        return colang + colang_body
 
     def _generate_yaml(self, config: Dict[str, bool], model: str, ollama_url: str) -> str:
         # Basic YAML config for Ollama
