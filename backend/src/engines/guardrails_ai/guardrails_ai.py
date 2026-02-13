@@ -31,7 +31,7 @@ class GuardrailsAIEngine(BaseGuardEngine):
         
         # 1. ดึงค่า Model/Provider
         current_provider = kwargs.get("provider_id", "ollama")
-        current_model = kwargs.get("model_name", "qwen2.5:7b")
+        current_model = kwargs.get("model_name", "scb10x/typhoon2.5-qwen3-4b")
 
         # 🟢 สร้างฟังก์ชัน llm_callable
         def my_llm_callable(prompt: str) -> str:
