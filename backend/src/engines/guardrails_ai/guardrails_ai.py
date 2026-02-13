@@ -23,6 +23,7 @@ class GuardrailsAIEngine(BaseGuardEngine):
             SwitchInfo(key="profanity", label="🤬 Anti-Toxicity", default=True),
             SwitchInfo(key="pii", label="🕵️ PII Masking", default=True),
             SwitchInfo(key="off_topic", label="🚧 Topic Control", default=False),
+            SwitchInfo(key="competitor_check", label="🏢 Competitor Check", default=False),
             SwitchInfo(key="hallucination", label="🤥 Anti-Hallucination", default=False),
             SwitchInfo(key="json_format", label="🧩 Force JSON", default=False),
         ]
@@ -60,16 +61,21 @@ class GuardrailsAIEngine(BaseGuardEngine):
             input_validators.append(HubToxicity(on_fail="exception"))
             
         if config.get("pii"):
-            input_validators.append(HubPII(on_fail="exception"))
+            # 1.1 Enhanced PII Check used: EMAIL, PHONE, CREDIT_CARD, IP, URL
+            input_validators.append(HubPII(
+                piis=["EMAIL_ADDRESS", "PHONE_NUMBER", "IP_ADDRESS", "CREDIT_CARD", "URL"], 
+                on_fail="exception"
+            ))
 
         if config.get("off_topic"):
             input_validators.append(HubTopic(
-                valid_topics=["General"], 
-                invalid_topics=["Politics", "Religion"],
+                valid_topics=["General", "Technology", "Business"], 
+                invalid_topics=["Politics", "Religion", "Gambling"],
                 on_fail="exception",
                 llm_callable=my_llm_callable
             ))
-
+        
+        # ... (Input Guard Execution) - No change needed here
         if input_validators:
             try:
                 guard = Guard.from_string(validators=input_validators)
@@ -107,6 +113,15 @@ class GuardrailsAIEngine(BaseGuardEngine):
         output_validators = []
         if config.get("hallucination"):
             output_validators.append(HubHallucination(on_fail="exception", llm_callable=my_llm_callable))
+        
+        # 2.3 Competitor Check (Output Rail)
+        if config.get("competitor_check"):
+             output_validators.append(HubCompetitor(
+                 competitors=["CompetitorA", "CompetitorB", "RivalCorp"], # ตัวอย่าง
+                 on_fail="exception",
+                 llm_callable=my_llm_callable
+             ))
+
         if config.get("json_format"):
             output_validators.append(MockJSONFormat(on_fail="exception"))
 
