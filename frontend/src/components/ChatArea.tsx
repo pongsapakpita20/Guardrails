@@ -10,7 +10,6 @@ interface ChatAreaProps {
     isLoading: boolean;
     systemStatus: SystemStatus;
     
-    // Props สำหรับ Dropdown ที่ย้ายมา
     frameworks: Option[];
     selectedFramework: string;
     setSelectedFramework: (val: string) => void;
@@ -21,7 +20,6 @@ interface ChatAreaProps {
     selectedModel: string;
     setSelectedModel: (val: string) => void;
     
-    // Props สำหรับ Download Model
     onDownloadModel: (modelName: string) => void;
 }
 
@@ -35,7 +33,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({
     const chatEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     
-    // State สำหรับ Modal ดาวน์โหลด
     const [showDownloadInput, setShowDownloadInput] = useState(false);
     const [newModelName, setNewModelName] = useState("");
 
@@ -47,6 +44,17 @@ const ChatArea: React.FC<ChatAreaProps> = ({
         }
     }, [isLoading, systemStatus]);
 
+    // ✅ Logic ใหม่สำหรับปุ่ม +
+    const handleAddModelClick = () => {
+        if (selectedProvider === 'gpustack') {
+            // ถ้าเป็น GPUStack ให้เปิดหน้า Dashboard
+            window.open('http://localhost:10101', '_blank');
+        } else {
+            // ถ้าเป็น Ollama ให้โชว์ช่องโหลด
+            setShowDownloadInput(!showDownloadInput);
+        }
+    };
+
     const handleDownloadSubmit = () => {
         if (newModelName.trim()) {
             onDownloadModel(newModelName);
@@ -57,7 +65,6 @@ const ChatArea: React.FC<ChatAreaProps> = ({
 
     return (
         <div className="chat-container">
-            {/* --- HEADER ใหม่: รวม Dropdown --- */}
             <div className="chat-header">
                 <div className="header-left">
                     <div className="ai-icon">🤖</div>
@@ -65,38 +72,57 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                         <span style={{fontWeight:'bold', fontSize:'0.9rem'}}>AI Playground</span>
                         <div style={{display:'flex', alignItems:'center', gap:'5px'}}>
                             <span className={`status-dot ${systemStatus}`}></span>
-                            <span style={{fontSize:'0.65rem', color:'#64748b'}}>{systemStatus.toUpperCase()}</span>
+                            <span style={{fontSize:'0.65rem', color:'#64748b'}}>
+                                {/* ✅ แสดงข้อความ Loading ชัดๆ */}
+                                {systemStatus === 'loading_model' ? 'LOADING MODEL...' : systemStatus.toUpperCase()}
+                            </span>
                         </div>
                     </div>
                 </div>
 
                 <div className="header-controls">
-                    {/* 1. Framework */}
-                    <select className="header-select" value={selectedFramework} onChange={(e) => setSelectedFramework(e.target.value)} title="Select Framework">
+                    <select className="header-select" value={selectedFramework} onChange={(e) => setSelectedFramework(e.target.value)}>
                         {frameworks.map(fw => <option key={fw.id} value={fw.id}>{fw.name}</option>)}
                     </select>
 
                     <span className="divider">|</span>
 
-                    {/* 2. Provider */}
-                    <select className="header-select" value={selectedProvider} onChange={(e) => setSelectedProvider(e.target.value)} title="Select Provider">
+                    <select className="header-select" value={selectedProvider} onChange={(e) => setSelectedProvider(e.target.value)}>
                         {providers.map(pv => <option key={pv.id} value={pv.id}>{pv.name}</option>)}
                     </select>
 
-                    {/* 3. Model + Download Button */}
                     <div className="model-selector-group">
-                        <select className="header-select model-select" value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)} title="Select Model">
+                        <select 
+                            className="header-select model-select" 
+                            value={selectedModel} 
+                            onChange={(e) => setSelectedModel(e.target.value)}
+                            disabled={systemStatus === 'loading_model'} // ล็อกตอนโหลด
+                        >
                             {models.length === 0 && <option value="">No models</option>}
                             {models.map(m => <option key={m} value={m}>{m}</option>)}
                         </select>
-                        <button className="add-model-btn" onClick={() => setShowDownloadInput(!showDownloadInput)} title="Download New Model">
+                        
+                        {/* ✅ ปุ่ม + ที่เปลี่ยน Logic แล้ว */}
+                        <button 
+                            className="add-model-btn" 
+                            onClick={handleAddModelClick}
+                            title={selectedProvider === 'gpustack' ? "Open GPUStack Dashboard" : "Download New Model"}
+                        >
                             +
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* Input สำหรับ Download Model (แสดงเมื่อกด +) */}
+            {/* ✅ Overlay ตอนโหลดโมเดล (Optional: จะได้เห็นชัดๆ) */}
+            {systemStatus === 'loading_model' && (
+                <div className="model-loading-overlay">
+                    <div className="spinner"></div>
+                    <p>⏳ Loading Model: {selectedModel}...</p>
+                    <small>Please wait, this might take a few seconds.</small>
+                </div>
+            )}
+
             {showDownloadInput && (
                 <div className="download-bar">
                     <input 
@@ -110,17 +136,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({
                 </div>
             )}
 
-            {/* ... (ส่วน Chat Window และ Input Area เหมือนเดิม) ... */}
             <div className="chat-window">
                 {/* ... (Code เดิม) ... */}
-                {chatLog.length === 0 && (
-                    <div className="empty-state">
-                        <div style={{fontSize: '3rem'}}>💬</div>
-                        <p>Framework: {selectedFramework}</p>
-                        <p style={{fontSize: '0.9rem', color: '#94a3b8'}}>{selectedProvider} / {selectedModel}</p>
-                    </div>
-                )}
-                 {chatLog.map((msg, idx) => (
+                {chatLog.map((msg, idx) => (
                     <div key={idx} className={`message-row ${msg.sender === "User" ? "user" : "ai"}`}>
                         {msg.sender === "AI" && <div className="avatar ai">🤖</div>}
                         <div className={`message-bubble ${msg.sender === "User" ? "user-msg" : (msg.status === "blocked" ? "blocked-msg" : "ai-msg")}`}>

@@ -18,7 +18,7 @@
   justify-content: space-between; /* แยกซ้ายขวา */
   align-items: center;
   gap: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
   z-index: 10;
 }
 /* พื้นที่แชท: ให้ยืดจนเต็ม และ Scroll ได้ */
@@ -43,30 +43,135 @@
 }
 
 /* ... (Style ของ Message bubble, Avatar, Status dot เก็บของเดิมไว้ได้เลย) ... */
-.chat-input { flex: 1; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 1rem; outline: none; transition: 0.2s; }
-.chat-input:focus { border-color: #2563eb; }
-.send-btn { padding: 0 25px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-.send-btn:hover:not(:disabled) { background: #1d4ed8; }
-.send-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+.chat-input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 1rem;
+  outline: none;
+  transition: 0.2s;
+}
+.chat-input:focus {
+  border-color: #2563eb;
+}
+.send-btn {
+  padding: 0 25px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: 0.2s;
+}
+.send-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+.send-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
 
 /* Message Styles */
-.message-row { display: flex; gap: 10px; margin-bottom: 10px; }
-.message-row.user { justify-content: flex-end; }
-.message-bubble { max-width: 70%; padding: 12px 16px; border-radius: 12px; position: relative; line-height: 1.5; }
-.user-msg { background: #2563eb; color: white; border-bottom-right-radius: 2px; }
-.ai-msg { background: white; border: 1px solid #e2e8f0; color: #334155; border-bottom-left-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-.blocked-msg { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; }
-.avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; }
-.avatar.ai { background: #e0e7ff; }
-.avatar.user { background: #dbeafe; }
-.timestamp { font-size: 0.65rem; margin-top: 5px; opacity: 0.7; text-align: right; }
-.violation-badge { background: #fecaca; color: #7f1d1d; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; margin-bottom: 5px; display: inline-block; font-weight: bold; border: 1px solid #ef4444;}
-.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
-.status-dot.ready { background-color: #10b981; box-shadow: 0 0 5px #10b981; }
-.status-dot.initializing { background-color: #f59e0b; animation: pulse 1s infinite; }
-.status-dot.loading_model { background-color: #3b82f6; animation: pulse 1s infinite; }
-.status-dot.error { background-color: #ef4444; }
-@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+.message-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.message-row.user {
+  justify-content: flex-end;
+}
+.message-bubble {
+  max-width: 70%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  position: relative;
+  line-height: 1.5;
+}
+.user-msg {
+  background: #2563eb;
+  color: white;
+  border-bottom-right-radius: 2px;
+}
+.ai-msg {
+  background: white;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  border-bottom-left-radius: 2px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.blocked-msg {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+.avatar.ai {
+  background: #e0e7ff;
+}
+.avatar.user {
+  background: #dbeafe;
+}
+.timestamp {
+  font-size: 0.65rem;
+  margin-top: 5px;
+  opacity: 0.7;
+  text-align: right;
+}
+.violation-badge {
+  background: #fecaca;
+  color: #7f1d1d;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-bottom: 5px;
+  display: inline-block;
+  font-weight: bold;
+  border: 1px solid #ef4444;
+}
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.status-dot.ready {
+  background-color: #10b981;
+  box-shadow: 0 0 5px #10b981;
+}
+.status-dot.initializing {
+  background-color: #f59e0b;
+  animation: pulse 1s infinite;
+}
+.status-dot.loading_model {
+  background-color: #3b82f6;
+  animation: pulse 1s infinite;
+}
+.status-dot.error {
+  background-color: #ef4444;
+}
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
 
 .header-left {
   display: flex;
@@ -92,14 +197,29 @@
   cursor: pointer;
   max-width: 150px;
 }
-.header-select:hover { border-color: #cbd5e1; }
-.header-select:focus { border-color: #2563eb; background: white; }
+.header-select:hover {
+  border-color: #cbd5e1;
+}
+.header-select:focus {
+  border-color: #2563eb;
+  background: white;
+}
 
-.divider { color: #e2e8f0; font-size: 1.2rem; }
+.divider {
+  color: #e2e8f0;
+  font-size: 1.2rem;
+}
 
 /* ปุ่ม + และ Group */
-.model-selector-group { display: flex; gap: 4px; }
-.model-select { max-width: 200px; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.model-selector-group {
+  display: flex;
+  gap: 4px;
+}
+.model-select {
+  max-width: 200px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
 .add-model-btn {
   border: 1px solid #e2e8f0;
   border-left: none;
@@ -111,7 +231,9 @@
   font-weight: bold;
   padding: 0 10px;
 }
-.add-model-btn:hover { background: #e2e8f0; }
+.add-model-btn:hover {
+  background: #e2e8f0;
+}
 
 /* Download Bar (แถบที่โผล่มาเวลากด +) */
 .download-bar {
@@ -122,8 +244,66 @@
   gap: 10px;
   animation: slideDown 0.2s ease-out;
 }
-.download-bar input { flex: 1; padding: 6px 10px; border: 1px solid #bae6fd; border-radius: 4px; font-size: 0.9rem; }
-.download-bar button { padding: 6px 15px; background: #0ea5e9; color: white; border: none; border-radius: 4px; cursor: pointer; }
-.download-bar button.cancel { background: transparent; color: #64748b; }
+.download-bar input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #bae6fd;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+.download-bar button {
+  padding: 6px 15px;
+  background: #0ea5e9;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.download-bar button.cancel {
+  background: transparent;
+  color: #64748b;
+}
 
-@keyframes slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes slideDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+/* ChatArea.css */
+
+.model-loading-overlay {
+    position: absolute;
+    top: 60px; /* ใต้ Header */
+    left: 0;
+    right: 0;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px;
+    text-align: center;
+    border-bottom: 1px solid #ddd;
+    color: #0ea5e9;
+    font-weight: bold;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
