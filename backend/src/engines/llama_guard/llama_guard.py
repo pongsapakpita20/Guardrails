@@ -2,6 +2,7 @@ from typing import List, Dict
 import os
 from ..base import BaseGuardEngine, SwitchInfo, GuardResult
 from ...llm.factory import LLMFactory
+from ...config import SYSTEM_PROMPT  # <--- 1. เพิ่มบรรทัดนี้
 
 class LlamaGuardEngine(BaseGuardEngine):
     def get_switches(self) -> List[SwitchInfo]:
@@ -27,7 +28,7 @@ class LlamaGuardEngine(BaseGuardEngine):
         # PART 1: ตรวจความปลอดภัยด้วย Llama Guard 3 (Local Ollama)
         # =========================================================
         
-        # กฎความปลอดภัย (Safety Policy)
+        # (ส่วน Policy และ Prompt ของ Llama Guard เหมือนเดิม...)
         policy = """
 <BEGIN UNSAFE CONTENT CATEGORIES>
 S1: Violent Crimes. 
@@ -46,7 +47,6 @@ S13: Elections.
 <END UNSAFE CONTENT CATEGORIES>
 """
         
-        # Prompt ตามมาตรฐาน Llama Guard 3
         prompt = f"""
 <|begin_of_text|><|start_header_id|>user<|end_header_id|>
 Task: Check if there is unsafe content in 'User' messages in conversations according to our safety policy with the below categories.
@@ -66,27 +66,25 @@ Provide your safety assessment for User in the above conversation:
 """
 
         try:
-            # 🟢 บังคับใช้ Local Ollama สำหรับการตรวจ (Guard)
             guard_provider = "ollama"
-            guard_model = "llama-guard3:8b" # ใช้รุ่น 8B ที่ดีที่สุดสำหรับ Local
+            guard_model = "llama-guard3:8b"
 
             print(f"🛡️ Guard Checking with: {guard_model} on {guard_provider}...")
             
             guard_service = LLMFactory.get_service(guard_provider)
+            # Guard ไม่ต้องใช้ System Prompt (เพราะ Prompt มันเฉพาะทางอยู่แล้ว)
             guard_response = await guard_service.generate(prompt, model_name=guard_model)
             guard_response = guard_response.strip()
 
-            # แปลผลลัพธ์
             if guard_response.startswith("unsafe"):
                 parts = guard_response.split("\n")
                 violation_codes = parts[1] if len(parts) > 1 else "Unknown"
                 
-                # เช็คว่า User ปิดสวิตช์กฎข้อนั้นไว้หรือเปล่า?
                 violated_list = [v.strip() for v in violation_codes.split(",")]
                 is_really_unsafe = False
                 
                 for code in violated_list:
-                    if config.get(code, True): # ถ้าเปิดสวิตช์ไว้ ถือว่าผิดจริง
+                    if config.get(code, True):
                         is_really_unsafe = True
                         break
                 
@@ -102,14 +100,11 @@ Provide your safety assessment for User in the above conversation:
 
         except Exception as e:
             print(f"❌ Guard Error: {e}")
-            # Fail Open (ปล่อยผ่านถ้า Guard พัง) หรือจะ Block ก็ได้
-            # return GuardResult(safe=False, violation="System Error", reason="Guard System Failed")
 
         # =========================================================
         # PART 2: ส่งต่อให้ Chatbot บริษัท (GPUStack)
         # =========================================================
         try:
-            # ดึง Provider/Model เป้าหมายจากที่ User เลือกหน้าเว็บ
             target_provider = kwargs.get("provider_id", "gpustack")
             target_model = kwargs.get("model_name", "scb10x/typhoon2.5-qwen3-4b")
             
@@ -117,8 +112,12 @@ Provide your safety assessment for User in the above conversation:
             
             chat_service = LLMFactory.get_service(target_provider)
             
-            # ส่งข้อความไปหา Chatbot (System Prompt จะไปถูกใส่ใน Service เอง)
-            chat_response = await chat_service.generate(message, model_name=target_model)
+            # ✅ 2. แก้ตรงนี้: ส่ง SYSTEM_PROMPT ไปด้วย!
+            chat_response = await chat_service.generate(
+                message, 
+                system_prompt=SYSTEM_PROMPT,  # <--- ใส่บทบาทสมมติ
+                model_name=target_model
+            )
             
             return GuardResult(safe=True, reason=chat_response)
 
