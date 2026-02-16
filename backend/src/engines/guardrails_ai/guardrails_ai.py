@@ -67,25 +67,39 @@ class GuardrailsAIEngine(BaseGuardEngine):
                 on_fail="exception"
             ))
 
+        print(f"DEBUG: Guardrails AI FULL Config -> {config}")
         if config.get("off_topic"):
             input_validators.append(HubTopic(
-                valid_topics=["SRT Services", "Train Schedule", "Ticket Booking", "Parcel Delivery", "General", "Travel", "Travel Itinerary", "Time Inquiry"], 
-                invalid_topics=["Politics", "Religion", "Airlines"],
+                valid_topics=[
+                    "SRT_SERVICE: Questions about Thai railway services, train schedules, buying tickets, station facilities (like luggage storage), and official SRT information."
+                ], 
+                invalid_topics=[
+                    "OTHER: Any topic that is NOT about Thai railway services, including general knowledge (dates, weather), social chat, greetings, politics, or other transportation."
+                ],
                 on_fail="exception",
                 llm_callable=my_llm_callable
             ))
         
-        # ... (Input Guard Execution) - No change needed here
+        # -------------------------------------------------
+        # Input Guard Execution
+        # -------------------------------------------------
+        print(f"🛡️ [Guardrails AI] Total Input Validators: {len(input_validators)}")
+        print(f"🛡️ [Guardrails AI] Validator Names: {[type(v).__name__ for v in input_validators]}")
         if input_validators:
             try:
+                print(f"🛡️ [Guardrails AI] Testing Input: '{message}'")
                 guard = Guard.from_string(validators=input_validators)
                 res = guard.parse(message)
+                
                 if not res.validation_passed:
+                    print(f"🚫 [Guardrails AI] Input Blocked. Reason: {res.validation_summaries}")
                     return GuardResult(safe=False, violation="Input Guard", reason="Blocked by Input Rails")
+                
+                print(f"✅ [Guardrails AI] Input Passed.")
             except Exception as e:
                 # ✅ แก้ไขตรงนี้: จับ Error ได้แล้วต้อง "บล็อก" ทันที ห้ามปล่อยผ่าน!
                 error_msg = str(e)
-                print(f"🛡️ Guard Blocked: {error_msg}")
+                print(f"🚫 [Guardrails AI] Exception Blocked: {error_msg}")
                 
                 # ดึงข้อความแจ้งเตือนที่สวยๆ ออกมา (ตัดส่วน technical ทิ้ง)
                 user_reason = error_msg.split(":")[-1].strip()

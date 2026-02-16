@@ -35,6 +35,24 @@ except ImportError:
 
 
 
+import json
+
+# ==========================================
+# 🛠️ Helper: Validator Caching (Singleton Pattern)
+# ==========================================
+_VALIDATOR_CACHE: Dict[str, Any] = {}
+
+def get_cached_validator(name: str, constructor: Callable, **kwargs) -> Any:
+    # สร้าง Cache Key ที่คงที่โดยใช้ JSON dumps และ sort_keys
+    # เราจะใช้เฉพาะค่าคอนฟิกที่ไม่ใช่ callable มาทำเป็น key
+    stable_kwargs = {k: v for k, v in kwargs.items() if not callable(v)}
+    cache_key = f"{name}_{json.dumps(stable_kwargs, sort_keys=True)}"
+    
+    if cache_key not in _VALIDATOR_CACHE:
+        print(f"📦 [Cache] First time loading weights for {name} (Key: {cache_key})...")
+        _VALIDATOR_CACHE[cache_key] = constructor(**kwargs)
+    return _VALIDATOR_CACHE[cache_key]
+
 # ==========================================
 # 🛡️ ZONE 1: Input Rails (Wrappers with Logic)
 # ==========================================
@@ -44,16 +62,13 @@ except ImportError:
 class HubPII(Validator):
     def __init__(self, piis: List[str] = None, on_fail: str = "exception"):
         super().__init__(on_fail=on_fail)
-        # ถ้ามีของจริงให้ใช้ของจริง ถ้าไม่มีให้ใช้ None
-        if DetectPII:
-            self.validator = DetectPII(pii_entities=piis or ["PHONE_NUMBER"], on_fail=on_fail)
-        else:
-            self.validator = None
+        self.piis = piis or ["PHONE_NUMBER"]
+        self.on_fail = on_fail
 
     def validate(self, value: Any, metadata: Dict) -> ValidationResult:
-        # ถ้ามีของจริง ให้ใช้ของจริง
-        if self.validator: return self.validator.validate(value, metadata)
-        
+        if DetectPII:
+            validator = get_cached_validator("DetectPII", DetectPII, pii_entities=self.piis, on_fail=self.on_fail)
+            return validator.validate(value, metadata)
         return PassResult()
 
 # 1.2 Off-Topic (การเมือง)
@@ -61,14 +76,18 @@ class HubPII(Validator):
 class HubTopic(Validator):
     def __init__(self, valid_topics: List[str] = None, invalid_topics: List[str] = None, on_fail: str = "exception", llm_callable: Optional[Callable] = None, **kwargs):
         super().__init__(on_fail=on_fail)
-        if RestrictToTopic:
-            self.validator = RestrictToTopic(valid_topics=valid_topics, invalid_topics=invalid_topics, on_fail=on_fail, llm_callable=llm_callable, **kwargs)
-        else:
-            self.validator = None
+        self.args = {
+            "valid_topics": valid_topics,
+            "invalid_topics": invalid_topics,
+            "on_fail": on_fail,
+            "llm_callable": llm_callable,
+            **kwargs
+        }
 
     def validate(self, value: Any, metadata: Dict) -> ValidationResult:
-        if self.validator: return self.validator.validate(value, metadata)
-
+        if RestrictToTopic:
+            validator = get_cached_validator("RestrictToTopic", RestrictToTopic, **self.args)
+            return validator.validate(value, metadata)
         return PassResult()
 
 # 1.3 Jailbreak (Ignore previous)
@@ -76,14 +95,12 @@ class HubTopic(Validator):
 class HubJailbreak(Validator):
     def __init__(self, on_fail: str = "exception", llm_callable: Optional[Callable] = None, **kwargs):
         super().__init__(on_fail=on_fail)
-        if DetectJailbreak:
-            self.validator = DetectJailbreak(on_fail=on_fail, llm_callable=llm_callable, **kwargs)
-        else:
-            self.validator = None
+        self.args = {"on_fail": on_fail, "llm_callable": llm_callable, **kwargs}
 
     def validate(self, value: Any, metadata: Dict) -> ValidationResult:
-        if self.validator: return self.validator.validate(value, metadata)
-
+        if DetectJailbreak:
+            validator = get_cached_validator("DetectJailbreak", DetectJailbreak, **self.args)
+            return validator.validate(value, metadata)
         return PassResult()
 
 # 1.4 Toxicity (คำหยาบ)
@@ -91,14 +108,16 @@ class HubJailbreak(Validator):
 class HubToxicity(Validator):
     def __init__(self, threshold: float = 0.5, on_fail: str = "exception", **kwargs):
         super().__init__(on_fail=on_fail)
-        if ToxicLanguage:
-            self.validator = ToxicLanguage(threshold=threshold, on_fail=on_fail, **kwargs)
-        else:
-            self.validator = None
+        self.args = {"threshold": threshold, "on_fail": on_fail, **kwargs}
 
     def validate(self, value: Any, metadata: Dict) -> ValidationResult:
-        if self.validator: return self.validator.validate(value, metadata)
-
+        text = str(value)
+        print(f"🔍 [Debug] Checking Toxicity for: '{text}'")
+        
+        if ToxicLanguage:
+            validator = get_cached_validator("ToxicLanguage", ToxicLanguage, **self.args)
+            return validator.validate(value, metadata)
+        
         return PassResult()
 
 # 1.5 Competitor Monitor
@@ -106,13 +125,12 @@ class HubToxicity(Validator):
 class HubCompetitor(Validator):
     def __init__(self, competitors: List[str] = None, on_fail: str = "exception", llm_callable: Optional[Callable] = None, **kwargs):
         super().__init__(on_fail=on_fail)
-        if CompetitorCheck:
-            self.validator = CompetitorCheck(competitors=competitors or [], on_fail=on_fail, **kwargs)
-        else:
-            self.validator = None
+        self.args = {"competitors": competitors or [], "on_fail": on_fail, "llm_callable": llm_callable, **kwargs}
 
     def validate(self, value: Any, metadata: Dict) -> ValidationResult:
-        if self.validator: return self.validator.validate(value, metadata)
+        if CompetitorCheck:
+            validator = get_cached_validator("CompetitorCheck", CompetitorCheck, **self.args)
+            return validator.validate(value, metadata)
         return PassResult()
 
 # ==========================================
