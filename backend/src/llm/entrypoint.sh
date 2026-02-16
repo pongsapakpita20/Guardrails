@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 0. Install curl (à¹€à¸žà¸£à¸²à¸° Image à¸‚à¸­à¸‡ Ollama à¹„à¸¡à¹ˆà¸¡à¸µ curl à¸¡à¸²à¹ƒà¸«à¹‰)
+# 0. Install curl (เพราะ Image ของ Ollama ไม่มี curl มาให้)
 if ! command -v curl &> /dev/null; then
     echo "curl not found. Installing..."
     apt-get update && apt-get install -y curl
@@ -14,21 +14,36 @@ pid=$!
 
 # 2. Wait for Ollama to start
 sleep 5
-echo " Waiting for Ollama API..."
+echo "⏳ Waiting for Ollama API..."
 while ! curl -s http://localhost:11434/api/tags > /dev/null; do
     sleep 1
 done
-echo " Ollama is ready !"
+echo "✅ Ollama is ready !"
 
-# 3. Pull Model (Check if exists first)
-MODEL_NAME="scb10x/typhoon2.5-qwen3-4b"
+# ---------------------------------------------------------
+# 3.1 Pull Chat Model (Typhoon)
+# ---------------------------------------------------------
+CHAT_MODEL="scb10x/typhoon2.5-qwen3-4b"
 
-if curl -s http://localhost:11434/api/tags | grep -q "$MODEL_NAME"; then
-    echo "Model $MODEL_NAME already exists. Skipping pull."
+if curl -s http://localhost:11434/api/tags | grep -q "$CHAT_MODEL"; then
+    echo "Model $CHAT_MODEL already exists. Skipping pull."
 else
-    echo "Pulling model $MODEL_NAME..."
-    ollama pull $MODEL_NAME
-    echo "Model pulled successfully!"
+    echo "⬇️ Pulling model $CHAT_MODEL..."
+    ollama pull $CHAT_MODEL
+    echo "✅ Model $CHAT_MODEL pulled successfully!"
+fi
+
+# ---------------------------------------------------------
+# 3.2 Pull Guard Model (Llama Guard 3) <--- เพิ่มตรงนี้ครับ
+# ---------------------------------------------------------
+GUARD_MODEL="llama-guard3:8b"
+
+if curl -s http://localhost:11434/api/tags | grep -q "$GUARD_MODEL"; then
+    echo "Model $GUARD_MODEL already exists. Skipping pull."
+else
+    echo "⬇️ Pulling model $GUARD_MODEL..."
+    ollama pull $GUARD_MODEL
+    echo "✅ Model $GUARD_MODEL pulled successfully!"
 fi
 
 # 4. Wait for the process to finish
