@@ -18,7 +18,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 
 ARG GUARDRAILS_TOKEN
-
 # 3. เตรียม Environment (ลง Library หนักๆ รอไว้เลย จะได้ไม่ไปค้างตอน install hub)
 # restricttotopic มักจะใช้ transformers, torch
 RUN pip install --no-cache-dir transformers torch numpy scikit-learn
@@ -29,7 +28,7 @@ RUN if [ -n "$GUARDRAILS_TOKEN" ]; then \
     pip install --force-reinstall "rich<14.0.0" && \
     guardrails configure --token $GUARDRAILS_TOKEN --disable-metrics --disable-remote-inferencing; \
     fi
-
+    
 # ตัวเบาๆ ลงก่อน
 RUN if [ -n "$GUARDRAILS_TOKEN" ]; then guardrails hub install hub://guardrails/detect_pii; fi
 RUN if [ -n "$GUARDRAILS_TOKEN" ]; then guardrails hub install hub://guardrails/detect_jailbreak; fi
