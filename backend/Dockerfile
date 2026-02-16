@@ -6,11 +6,13 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     build-essential \
     g++ \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
-    
-# ลง Library ที่จำเป็น
+
+# ลง Library ที่จำเป็น (แยก nemoguardrails ออกเพราะ annoy ต้อง compile)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir fastapi uvicorn pydantic requests guardrails-ai "rich<14.0.0" nest_asyncio
+RUN pip install --no-cache-dir nemoguardrails
 
 # Copy โค้ดทั้งหมด
 COPY . .

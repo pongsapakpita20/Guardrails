@@ -35,7 +35,7 @@ class GuardrailsAIEngine(BaseGuardEngine):
         current_model = kwargs.get("model_name", "scb10x/typhoon2.5-qwen3-4b")
 
         # 🟢 สร้างฟังก์ชัน llm_callable
-        def my_llm_callable(prompt: str) -> str:
+        def my_llm_callable(prompt: str, *args, **kwargs) -> str:
             ollama_url = os.getenv("OLLAMA_URL", "http://ollama:11434")
             try:
                 res = requests.post(f"{ollama_url}/api/generate", json={
@@ -69,8 +69,8 @@ class GuardrailsAIEngine(BaseGuardEngine):
 
         if config.get("off_topic"):
             input_validators.append(HubTopic(
-                valid_topics=["SRT Services", "Train Schedule", "Ticket Booking", "Parcel Delivery", "General"], 
-                invalid_topics=["Politics", "Religion", "Gambling", "Airlines", "Bus Services"],
+                valid_topics=["SRT Services", "Train Schedule", "Ticket Booking", "Parcel Delivery", "General", "Travel", "Travel Itinerary", "Time Inquiry"], 
+                invalid_topics=["Politics", "Religion", "Airlines"],
                 on_fail="exception",
                 llm_callable=my_llm_callable
             ))

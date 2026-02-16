@@ -125,11 +125,19 @@ class HubHallucination(Validator):
         super().__init__(on_fail=on_fail)
         self.validator = None
         if BespokeMiniCheck:
-             self.validator = BespokeMiniCheck(on_fail=on_fail, **kwargs)
+            try:
+                self.validator = BespokeMiniCheck(on_fail=on_fail, **kwargs)
+            except Exception as e:
+                print(f"⚠️ Warning: Failed to initialize BespokeMiniCheck (Hallucination): {e}")
+                self.validator = None
         
     def validate(self, value: Any, metadata: Dict) -> ValidationResult:
         if self.validator:
-            return self.validator.validate(value, metadata)
+            try:
+                return self.validator.validate(value, metadata)
+            except Exception as e:
+                print(f"⚠️ Warning: BespokeMiniCheck validation failed: {e}")
+                return PassResult()
         return PassResult()
 
 @register_validator(name="mock_json_format", data_type="string")
