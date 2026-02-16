@@ -1,0 +1,276 @@
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Optional, Dict, Any, List
+import time
+
+from backend.logger import log_manager
+from backend.ollama_service import ollama_service, gpustack_service, get_service
+from backend.config.settings import SYSTEM_PROMPT, FRAMEWORK_INFO
+
+app = FastAPI(title="SRT Chatbot Guardrails")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- Pydantic Models ---
+
+class GuardToggle(BaseModel):
+    pii: bool = False
+    off_topic: bool = False
+    jailbreak: bool = False
+    competitor: bool = False
+    toxicity: bool = False
+    hallucination: bool = False
+
+class LlamaGuardToggle(BaseModel):
+    S1:  bool = True   # Violent Crimes
+    S2:  bool = True   # Non-Violent Crimes
+    S3:  bool = True   # Sex Crimes
+    S4:  bool = True   # Child Exploitation
+    S5:  bool = True   # Defamation
+    S6:  bool = True   # Specialized Advice
+    S7:  bool = True   # Privacy
+    S8:  bool = True   # Intellectual Property
+    S9:  bool = True   # Indiscriminate Weapons
+    S10: bool = True   # Hate
+    S11: bool = True   # Self-Harm
+    S12: bool = True   # Sexual Content
+    S13: bool = True   # Elections
+
+class ChatRequest(BaseModel):
+    message: str
+    model: str
+    framework: str = "none"
+    backend: str = "ollama"  # "ollama" | "gpustack"
+    guardrails_ai: GuardToggle = GuardToggle()
+    nemo: GuardToggle = GuardToggle()
+    llama_guard: LlamaGuardToggle = LlamaGuardToggle()
+
+class ChatResponse(BaseModel):
+    response: str
+    blocked: bool = False
+    violation_type: Optional[str] = None
+    framework_used: Optional[str] = None
+
+# FRAMEWORK_INFO is imported from backend.config.settings
+
+def _load_guard(framework: str, guard_name: str):
+    import importlib
+    # Map framework → file suffix (e.g., pii → pii_guardai / pii_nemo)
+    suffix_map = {
+        "guardrails_ai": "_guardai",
+        "nemo": "_nemo",
+        "llama_guard": "_llamaguard",
+    }
+    suffix = suffix_map.get(framework, "")
+    return importlib.import_module(f"backend.guards.{framework}.{guard_name}{suffix}")
+
+# --- Endpoints ---
+
+@app.get("/health")
+async def health_check(backend: str = "ollama"):
+    svc = get_service(backend)
+    gpu_info = await svc.check_gpu()
+    return {"status": "ok", "gpu": gpu_info, "backend": backend}
+
+@app.get("/models")
+async def get_models(backend: str = "ollama"):
+    svc = get_service(backend)
+    models = await svc.list_models()
+    return {"models": models, "backend": backend}
+
+@app.get("/frameworks")
+async def get_frameworks():
+    return {"frameworks": FRAMEWORK_INFO}
+
+@app.websocket("/ws/logs")
+async def websocket_endpoint(websocket: WebSocket):
+    await log_manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        log_manager.disconnect(websocket)
+
+
+# --- Guard runners ---
+
+async def run_input_guards(request: ChatRequest) -> Optional[ChatResponse]:
+    fw = request.framework
+    if fw == "none":
+        return None
+
+    # --- Llama Guard: unified S1-S14 check ---
+    if fw == "llama_guard":
+        toggles = request.llama_guard
+        enabled = [k for k in ["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13"] if getattr(toggles, k)]
+        if enabled:
+            from backend.guards.llama_guard.checker_llamaguard import llama_guard_checker
+            await log_manager.log("Input Guard", "processing", f"[Llama Guard 3] Checking {len(enabled)} categories...")
+            is_safe, details = llama_guard_checker.check(request.message, enabled, role="User")
+            if not is_safe:
+                await log_manager.log("Input Guard", "error", f"[Llama Guard 3] Blocked: {details}")
+                return ChatResponse(response="ข้อความละเมิดนโยบายความปลอดภัย",
+                                    blocked=True, violation_type="Llama Guard", framework_used=fw)
+        return None
+
+    # --- Guardrails AI / NeMo: Input Guards (3) ---
+    # 1. PII (regex), 2. Jailbreak (regex), 3. Off-Topic (LLM)
+    toggles: GuardToggle = getattr(request, fw, GuardToggle())
+
+    # === 1. PII Detection (regex — fast) ===
+    if toggles.pii and "pii" in FRAMEWORK_INFO[fw]["supports"]:
+        mod = _load_guard(fw, "pii")
+        await log_manager.log("Input Guard", "processing", f"[{fw}] Checking PII...")
+        is_safe, details = mod.pii_guard.scan(request.message)
+        if not is_safe:
+            await log_manager.log("Input Guard", "error", f"[{fw}] PII Blocked: {details}")
+            return ChatResponse(response="ข้อความมีข้อมูลส่วนบุคคล (PII) ไม่สามารถประมวลผลได้",
+                                blocked=True, violation_type="PII", framework_used=fw)
+
+    # === 2. Jailbreak Attempt (regex — fast, specific) ===
+    if toggles.jailbreak and "jailbreak" in FRAMEWORK_INFO[fw]["supports"]:
+        mod = _load_guard(fw, "jailbreak")
+        await log_manager.log("Input Guard", "processing", f"[{fw}] Checking Jailbreak...")
+        is_safe, details = mod.jailbreak_guard.check(request.message)
+        if not is_safe:
+            await log_manager.log("Input Guard", "error", f"[{fw}] Jailbreak Blocked: {details}")
+            return ChatResponse(response="ข้อความละเมิดนโยบายความปลอดภัย",
+                                blocked=True, violation_type="Jailbreak", framework_used=fw)
+
+    # === 3. Profanity & Toxicity (regex — fast) ===
+    if toggles.toxicity and "toxicity" in FRAMEWORK_INFO[fw]["supports"]:
+        mod = _load_guard(fw, "toxicity")
+        await log_manager.log("Input Guard", "processing", f"[{fw}] Checking Toxicity...")
+        is_safe, details = mod.toxicity_guard.check(request.message)
+        if not is_safe:
+            await log_manager.log("Input Guard", "error", f"[{fw}] Toxicity Blocked: {details}")
+            return ChatResponse(response="ข้อความมีเนื้อหาที่ไม่เหมาะสม",
+                                blocked=True, violation_type="Toxicity", framework_used=fw)
+
+    # === 4. Off-Topic (LLM — slower, catch-all) ===
+    if toggles.off_topic and "off_topic" in FRAMEWORK_INFO[fw]["supports"]:
+        mod = _load_guard(fw, "off_topic")
+        await log_manager.log("Input Guard", "processing", f"[{fw}] Checking Off-Topic...")
+        is_safe, details = mod.off_topic_guard.check(request.message, request.model)
+        if not is_safe:
+            await log_manager.log("Input Guard", "error", f"[{fw}] Off-Topic Blocked: {details}")
+            return ChatResponse(response="ฉันสามารถตอบคำถามเกี่ยวกับการรถไฟแห่งประเทศไทยเท่านั้น",
+                                blocked=True, violation_type="Off-Topic", framework_used=fw)
+
+    return None
+
+
+async def run_output_guards(response_text: str, request: ChatRequest) -> Optional[ChatResponse]:
+    fw = request.framework
+    if fw == "none":
+        return None
+
+    # --- Llama Guard: same S1-S14 check on output ---
+    if fw == "llama_guard":
+        toggles = request.llama_guard
+        enabled = [k for k in ["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13"] if getattr(toggles, k)]
+        if enabled:
+            from backend.guards.llama_guard.checker_llamaguard import llama_guard_checker
+            await log_manager.log("Output Guard", "processing", f"[Llama Guard 3] Checking output ({len(enabled)} categories)...")
+            is_safe, details = llama_guard_checker.check(response_text, enabled, role="Agent")
+            if not is_safe:
+                await log_manager.log("Output Guard", "error", f"[Llama Guard 3] Blocked: {details}")
+                return ChatResponse(response="คำตอบถูกกรองเนื่องจากมีเนื้อหาไม่เหมาะสม",
+                                    blocked=True, violation_type="Llama Guard", framework_used=fw)
+        return None
+
+    # --- Guardrails AI / NeMo: Output Guards (3) ---
+    # 1. Hallucination, 2. Toxicity, 3. Competitor
+    toggles: GuardToggle = getattr(request, fw, GuardToggle())
+
+    # === 1. Hallucination ===
+    if toggles.hallucination and "hallucination" in FRAMEWORK_INFO[fw]["supports"]:
+        mod = _load_guard(fw, "hallucination")
+        await log_manager.log("Output Guard", "processing", f"[{fw}] Checking Hallucination...")
+        if fw == "guardrails_ai":
+            is_safe, details = mod.hallucination_guard.check(response_text, request.model)
+        else:
+            is_safe, details = mod.hallucination_guard.check(response_text)
+        if not is_safe:
+            await log_manager.log("Output Guard", "error", f"[{fw}] Hallucination Blocked: {details}")
+            return ChatResponse(response="คำตอบถูกกรองเนื่องจากอาจมีข้อมูลที่ไม่ถูกต้อง",
+                                blocked=True, violation_type="Hallucination", framework_used=fw)
+
+    # === 2. Profanity & Toxicity ===
+    if toggles.toxicity and "toxicity" in FRAMEWORK_INFO[fw]["supports"]:
+        mod = _load_guard(fw, "toxicity")
+        await log_manager.log("Output Guard", "processing", f"[{fw}] Checking Toxicity...")
+        is_safe, details = mod.toxicity_guard.check(response_text)
+        if not is_safe:
+            await log_manager.log("Output Guard", "error", f"[{fw}] Toxicity Blocked: {details}")
+            return ChatResponse(response="คำตอบถูกกรองเนื่องจากมีเนื้อหาไม่เหมาะสม",
+                                blocked=True, violation_type="Toxicity", framework_used=fw)
+
+    # === 3. Competitor Mention ===
+    if toggles.competitor and "competitor" in FRAMEWORK_INFO[fw]["supports"]:
+        mod = _load_guard(fw, "competitor")
+        await log_manager.log("Output Guard", "processing", f"[{fw}] Checking Competitor...")
+        is_safe, details = mod.competitor_guard.check(response_text)
+        if not is_safe:
+            await log_manager.log("Output Guard", "error", f"[{fw}] Competitor Blocked: {details}")
+            return ChatResponse(response="คำตอบถูกกรองเนื่องจากมีการกล่าวถึงคู่แข่ง",
+                                blocked=True, violation_type="Competitor", framework_used=fw)
+
+    return None
+
+
+# --- Main Chat Endpoint ---
+
+@app.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    start_time = time.time()
+    fw = request.framework
+
+    await log_manager.log("Input Guard", "start", f"Framework: {fw} — Checking input...")
+    blocked = await run_input_guards(request)
+    if blocked:
+        return blocked
+    await log_manager.log("Input Guard", "success", "Input ผ่านทุกด่านแล้ว", time.time() - start_time)
+
+    llm_start = time.time()
+    svc = get_service(request.backend)
+    await log_manager.log("LLM", "processing", f"กำลังสร้างคำตอบจาก {request.model} ({request.backend})...")
+
+    system_prompt = SYSTEM_PROMPT
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": request.message},
+    ]
+
+    full_response = ""
+    try:
+        for chunk in svc.chat_stream(request.model, messages):
+            full_response += chunk
+    except Exception as e:
+        await log_manager.log("LLM", "error", f"Generation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    await log_manager.log("LLM", "success", "สร้างคำตอบเสร็จสิ้น", time.time() - llm_start)
+
+    await log_manager.log("Output Guard", "start", f"Framework: {fw} — Checking output...")
+    blocked = await run_output_guards(full_response, request)
+    if blocked:
+        return blocked
+    await log_manager.log("Output Guard", "success", "Output ผ่านทุกด่านแล้ว")
+
+    total = time.time() - start_time
+    await log_manager.log("System", "complete", f"เสร็จสิ้น (รวม {total:.2f}s)", total)
+
+    return ChatResponse(response=full_response, framework_used=fw)
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)
