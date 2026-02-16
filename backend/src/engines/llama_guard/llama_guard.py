@@ -23,9 +23,11 @@ class LlamaGuardEngine(BaseGuardEngine):
 
     async def process(self, message: str, config: Dict[str, bool], **kwargs) -> GuardResult:
         
-        # 1. เตรียม Policy (กฎ) สำหรับ Llama Guard 3
-        # เราจะส่งกฎพวกนี้ไปบอก AI ว่า "ช่วยตรวจข้อความตามกฎพวกนี้หน่อย"
-        # (ตัดมาเฉพาะส่วนสำคัญเพื่อประหยัด Token)
+        # =========================================================
+        # PART 1: ตรวจความปลอดภัยด้วย Llama Guard 3 (Local Ollama)
+        # =========================================================
+        
+        # กฎความปลอดภัย (Safety Policy)
         policy = """
 <BEGIN UNSAFE CONTENT CATEGORIES>
 S1: Violent Crimes. 
@@ -44,8 +46,7 @@ S13: Elections.
 <END UNSAFE CONTENT CATEGORIES>
 """
         
-        # 2. สร้าง Prompt ตามมาตรฐาน Llama Guard 3
-        # มันต้องการ Format แบบนี้:
+        # Prompt ตามมาตรฐาน Llama Guard 3
         prompt = f"""
 <|begin_of_text|><|start_header_id|>user<|end_header_id|>
 Task: Check if there is unsafe content in 'User' messages in conversations according to our safety policy with the below categories.
@@ -65,62 +66,61 @@ Provide your safety assessment for User in the above conversation:
 """
 
         try:
-            # 3. เลือก Provider (Ollama หรือ GPUStack)
-            # เราจะพยายามใช้ provider เดียวกับที่ User เลือกมา แต่ถ้าไม่มีก็ default ไปที่ gpustack
-            provider_id = kwargs.get("provider_id", "gpustack")
-            
-            # ⚠️ สำคัญ: ต้องระบุชื่อโมเดล Llama Guard ที่เราจะใช้
-            # ถ้าใน GPUStack ชื่อโมเดลอาจจะเป็น "meta-llama/Llama-Guard-3-1B" 
-            # หรือถ้าใช้ Ollama อาจจะเป็น "llama-guard3"
-            # เพื่อความยืดหยุ่น เราจะลองหาโมเดลที่มีคำว่า 'guard' ในชื่อก่อน
-            llm_service = LLMFactory.get_service(provider_id)
-            
-            # (Logic เสริม: หาชื่อโมเดล Llama Guard อัตโนมัติ)
-            available_models = llm_service.get_models()
-            target_model = ""
-            for m in available_models:
-                if "guard" in m.lower():
-                    target_model = m
-                    break
-            
-            if not target_model:
-                # ถ้าหาไม่เจอ ให้ใช้ชื่อ default (เผื่อไว้)
-                target_model = "meta-llama/Llama-Guard-3-1B" 
+            # 🟢 บังคับใช้ Local Ollama สำหรับการตรวจ (Guard)
+            guard_provider = "ollama"
+            guard_model = "llama-guard3:8b" # ใช้รุ่น 8B ที่ดีที่สุดสำหรับ Local
 
-            print(f"🛡️ LlamaGuard Checking using model: {target_model}")
+            print(f"🛡️ Guard Checking with: {guard_model} on {guard_provider}...")
+            
+            guard_service = LLMFactory.get_service(guard_provider)
+            guard_response = await guard_service.generate(prompt, model_name=guard_model)
+            guard_response = guard_response.strip()
 
-            # 4. ยิงไปถาม AI
-            response = await llm_service.generate(prompt, model_name=target_model)
-            response = response.strip()
-
-            # 5. แปลผลลัพธ์
-            # Llama Guard จะตอบว่า "safe" หรือ "unsafe\nS1"
-            if response.startswith("unsafe"):
-                parts = response.split("\n")
+            # แปลผลลัพธ์
+            if guard_response.startswith("unsafe"):
+                parts = guard_response.split("\n")
                 violation_codes = parts[1] if len(parts) > 1 else "Unknown"
                 
                 # เช็คว่า User ปิดสวิตช์กฎข้อนั้นไว้หรือเปล่า?
-                # เช่น ถ้าเขาปิด S1 (Violent) แล้ว AI ตอบ S1 มา เราต้องปล่อยผ่าน
                 violated_list = [v.strip() for v in violation_codes.split(",")]
                 is_really_unsafe = False
                 
                 for code in violated_list:
-                    # ถ้า config เปิดไว้ (True) ถือว่าผิดจริง
-                    if config.get(code, True): 
+                    if config.get(code, True): # ถ้าเปิดสวิตช์ไว้ ถือว่าผิดจริง
                         is_really_unsafe = True
                         break
                 
                 if is_really_unsafe:
+                    print(f"🚫 BLOCKED by Llama Guard: {violation_codes}")
                     return GuardResult(
                         safe=False, 
                         violation=f"Llama Guard 3 ({violation_codes})", 
                         reason=f"AI ตรวจพบเนื้อหาไม่ปลอดภัยรหัส: {violation_codes}"
                     )
-
-            # ถ้าตอบ safe หรือ รหัสที่เจอไม่ได้เปิดใช้งานสวิตช์
-            return GuardResult(safe=True)
+            
+            print("✅ Input Safe. Forwarding to Chatbot...")
 
         except Exception as e:
-            print(f"❌ Llama Guard Error: {e}")
-            # ถ้าเอ๋อ ให้ปล่อยผ่านไปก่อน (Fail Open) หรือจะบล็อกก็ได้แล้วแต่นโยบาย
-            return GuardResult(safe=True, reason=f"Llama Guard Error: {e}")
+            print(f"❌ Guard Error: {e}")
+            # Fail Open (ปล่อยผ่านถ้า Guard พัง) หรือจะ Block ก็ได้
+            # return GuardResult(safe=False, violation="System Error", reason="Guard System Failed")
+
+        # =========================================================
+        # PART 2: ส่งต่อให้ Chatbot บริษัท (GPUStack)
+        # =========================================================
+        try:
+            # ดึง Provider/Model เป้าหมายจากที่ User เลือกหน้าเว็บ
+            target_provider = kwargs.get("provider_id", "gpustack")
+            target_model = kwargs.get("model_name", "scb10x/typhoon2.5-qwen3-4b")
+            
+            print(f"🚀 Sending to Chatbot: {target_model} on {target_provider}...")
+            
+            chat_service = LLMFactory.get_service(target_provider)
+            
+            # ส่งข้อความไปหา Chatbot (System Prompt จะไปถูกใส่ใน Service เอง)
+            chat_response = await chat_service.generate(message, model_name=target_model)
+            
+            return GuardResult(safe=True, reason=chat_response)
+
+        except Exception as e:
+            return GuardResult(safe=False, violation="Chatbot Error", reason=f"ไม่สามารถติดต่อ Chatbot ได้: {str(e)}")
