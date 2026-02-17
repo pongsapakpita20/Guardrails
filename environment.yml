@@ -29,3 +29,6 @@ dependencies:
     - tokenizers==0.14.1
     - sacremoses
     - sentencepiece
+    - detoxify
+    - sentence-transformers
+    - nest-asyncio

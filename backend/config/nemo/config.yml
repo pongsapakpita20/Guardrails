@@ -1,0 +1,32 @@
+models:
+  # Main LLM — Typhoon 2.5 via Ollama
+  - type: main
+    engine: ollama
+    model: scb10x/typhoon2.5-qwen3-4b
+    parameters:
+      base_url: http://localhost:11434
+
+  # Embedding model — Qwen 2.5 (7B) Instruct / Qwen Embedding
+  # Embedding model — Qwen 3 Embedding (via Ollama)
+  - type: embeddings
+    engine: ollama
+    model: qwen3-embedding:latest
+
+instructions:
+  - type: general
+    content: |
+      คุณคือพนักงาน Call Center ของการรถไฟแห่งประเทศไทย (รฟท. / SRT)
+      ชื่อของคุณคือ "น้องรางรถไฟ"
+      ตอบคำถามเกี่ยวกับตารางเวลารถไฟ สถานี ราคาตั๋ว และบริการต่างๆ ของ รฟท.
+      ตอบด้วยความสุภาพ ใช้ภาษาไทยที่เข้าใจง่าย
+      ห้ามตอบคำถามที่ไม่เกี่ยวข้องกับการรถไฟ
+      ห้ามแนะนำบริการของคู่แข่ง
+      ห้ามใช้ภาษาหยาบคาย
+
+rails:
+  input:
+    flows:
+      - self check input
+  output:
+    flows:
+      - self check output

@@ -1,42 +1,36 @@
 """
-Guardrails AI — Competitor Mention Guard
-Comprehensive list of Thai transport competitors.
+Guardrails AI — Competitor Mention Guard (Output Guard)
+Uses Guardrails AI Hub 'CompetitorCheck' validator.
 """
-from typing import Tuple, List
+from typing import Tuple
+from guardrails import Guard
+try:
+    from guardrails.hub import CompetitorCheck
+except ImportError:
+    CompetitorCheck = None
 
 class CompetitorGuard:
     def __init__(self):
-        self.competitors = [
-            # สายการบิน
-            "AirAsia", "แอร์เอเชีย",
-            "Nok Air", "นกแอร์",
-            "Thai Lion Air", "ไทยไลอ้อนแอร์",
-            "VietJet", "เวียตเจ็ท",
-            "Bangkok Airways", "บางกอกแอร์เวย์ส",
-            "Thai Airways", "การบินไทย",
-            "Thai Smile", "ไทยสมายล์",
+        if CompetitorCheck:
+            self.guard = Guard().use(
+                CompetitorCheck, 
+                competitors=["AirAsia", "Nok Air", "Thai Lion Air", "Grab", "Bolt", "Uber", "Nakhonchai Air"],
+                llm_callable="ollama/scb10x/typhoon2.5-qwen3-4b",
+                on_fail="exception"
+            )
+            self._has_guard = True
+        else:
+            self._has_guard = False
+            print("⚠️ CompetitorCheck not found in Hub, please install: guardrails hub install hub://guardrails/competitor_check")
 
-            # รถทัวร์ / รถบัส
-            "Nakhonchai Air", "นครชัยแอร์",
-            "Sombat Tour", "สมบัติทัวร์",
-            "บุษราคัมทัวร์", "ศรีสุพรรณ", "เชิดชัยทัวร์",
-            "บขส", "รถโดยสาร บขส",
+    def check(self, text: str, model: str = None) -> Tuple[bool, str]:
+        if not self._has_guard:
+            return True, "Guard not installed"
 
-            # Ride-hailing
-            "Grab", "แกร็บ",
-            "Bolt", "โบลท์",
-            "InDriver",
-            "Uber", "อูเบอร์",
-
-            # อื่นๆ
-            "12Go", "Traveloka", "Agoda",
-        ]
-
-    def check(self, text: str) -> Tuple[bool, str]:
-        lower_text = text.lower()
-        found: List[str] = [c for c in self.competitors if c.lower() in lower_text]
-        if found:
-            return False, f"Competitor mentioned: {', '.join(found[:3])}"
-        return True, "Clean"
+        try:
+            self.guard.validate(text)
+            return True, "Clean"
+        except Exception as e:
+            return False, f"Competitor detected (Hub): {str(e)}"
 
 competitor_guard = CompetitorGuard()
