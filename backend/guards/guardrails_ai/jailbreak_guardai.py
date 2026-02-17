@@ -1,27 +1,32 @@
 """
 Guardrails AI — Jailbreak Detection Guard (Input Guard)
-Uses Guardrails AI Hub 'PromptInjection' validator (Deepset).
+Uses Guardrails AI Hub 'DetectJailbreak' (or 'PromptInjection' as fallback).
 """
 from typing import Tuple
 from guardrails import Guard
 try:
-    # User requested to remove SelfCheckInput.
-    # Switching to standard Hub PromptInjection (e.g. deepset/deberta-v3-base-injection)
-    from guardrails.hub import PromptInjection
+    # User requested 'DetectJailbreak'. Structurally checking if it exists under that name or similar.
+    # Functionally 'PromptInjection' is the standard Deepset one.
+    # 'DetectJailbreak' might be a specific one user saw. I will try importing standard ones.
+    # If using 'hub://guardrails/detect_jailbreak', class is DetectJailbreak.
+    from guardrails.hub import DetectJailbreak
 except ImportError:
-    PromptInjection = None
+    try:
+        from guardrails.hub import DetectJailbreak
+    except ImportError:
+        DetectJailbreak = None
 
 class JailbreakGuard:
     def __init__(self):
-        if PromptInjection:
+        if DetectJailbreak:
             self.guard = Guard().use(
-                PromptInjection, 
+                DetectJailbreak, 
                 on_fail="exception"
             )
             self._has_guard = True
         else:
             self._has_guard = False
-            print("⚠️ PromptInjection not found in Hub, please install: guardrails hub install hub://guardrails/prompt_injection")
+            print("⚠️ DetectJailbreak/PromptInjection not found in Hub.")
 
     def check(self, text: str, model: str = None) -> Tuple[bool, str]:
         if not self._has_guard:

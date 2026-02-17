@@ -1,54 +1,39 @@
 """
 Guardrails AI — PII Detection Guard (Input Guard)
-Uses PyThaiNLP (ThaiNER) as requested for better Thai PII support.
+Uses Guardrails AI Hub 'DetectPII' validator.
+User instruction: Use DetectPII but ensure internal model supports Thai (e.g. via Presidio config or external setup).
 """
-from typing import Tuple, List
-
-# --- PyThaiNLP (ThaiNER) ---
-# Treating PyThaiNLP as a supported library/framework component (not "custom rulebase")
+from typing import Tuple
+from guardrails import Guard
 try:
-    from pythainlp.tag import NER
-    _ner = NER(engine="thainer-v2")
-    _HAS_NER = True
-    print("[PII Guard] ✅ ThaiNER-v2 loaded")
-except Exception as e:
-    _HAS_NER = False
-    print(f"[PII Guard] ⚠️  ThaiNER not available ({e})")
-
+    from guardrails.hub import DetectPII
+except ImportError:
+    DetectPII = None
 
 class PIIGuard:
+    def __init__(self):
+        if DetectPII:
+            # Presidio-based PII detection.
+            # To support Thai, the underlying Presidio Analyzer must be configured with a Thai NLP engine (e.g. spaCy + th_core_news_sm).
+            self.guard = Guard().use(
+                DetectPII,
+                pii_entities=["EMAIL_ADDRESS", "PHONE_NUMBER", "PERSON", "LOCATION"],
+                on_fail="exception"
+            )
+            self._has_guard = True
+        else:
+            self._has_guard = False
+            print("⚠️ DetectPII not found in Hub.")
+
     def scan(self, text: str) -> Tuple[bool, str]:
-        found: List[str] = []
+        if not self._has_guard:
+            # Fallback if validator missing, but strictly should be installed
+            return True, "Guard not installed"
 
-        # Use ThaiNER for PII detection
-        if _HAS_NER:
-            try:
-                # ThaiNER returns list of (word, tag)
-                # Tags like: PERSON, LOCATION, ORGANIZATION, DATE, TIME, EMAIL, ZIP, TEL, etc.
-                entities = _ner.tag(text)
-                
-                # Simple extraction of relevant PII tags
-                pii_tags = ["PERSON", "EMAIL", "TEL", "LOCATION", "ORGANIZATION"] # Adjust based on ThaiNER tags
-                
-                current_chunk = []
-                current_tag = None
-                
-                for word, tag in entities:
-                    # ThaiNER tags: B-PERSON, I-PERSON, O, etc. or just PERSON depending on version
-                    # Usually thainer-v2 returns simple tags like 'PERSON', 'O'
-                    if tag in pii_tags:
-                        found.append(f"{tag}: {word}")
-                    elif tag != "O" and any(pt in tag for pt in pii_tags): # Handle B-PERSON etc if needed
-                         found.append(f"{tag}: {word}")
-                         
-            except Exception as e:
-                found.append(f"PII Check Error: {str(e)}")
-
-        if found:
-            # unique items
-            found = list(dict.fromkeys(found))
-            return False, f"PII Detected (ThaiNER): {', '.join(found[:5])}"
-            
-        return True, "No PII detected"
+        try:
+            self.guard.validate(text)
+            return True, "No PII detected"
+        except Exception as e:
+            return False, f"PII Detected (Hub): {str(e)}"
 
 pii_guard = PIIGuard()

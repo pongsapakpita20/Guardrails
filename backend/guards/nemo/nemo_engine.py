@@ -32,44 +32,46 @@ def is_available() -> bool:
     return _HAS_NEMO
 
 
-async def check_guard(text: str, guard_type: str) -> tuple[bool, str]:
+# Exact refusal messages from rails.co — used to detect which rail triggered
+# Using EXACT messages prevents false positives where a normal LLM response
+# about trains might contain words like "การรถไฟ"
+_REFUSAL_MESSAGES = {
+    "pii":           "กรุณาอย่าส่งข้อมูลส่วนตัว",
+    "off_topic":     "ฉันสามารถตอบคำถามเกี่ยวกับการรถไฟแห่งประเทศไทยเท่านั้น",
+    "jailbreak":     "ไม่สามารถทำตามคำขอนี้ได้",
+    "toxicity":      "กรุณาใช้ภาษาที่สุภาพ",
+    "hallucination": "ไม่สามารถให้ข้อมูลดังกล่าวได้",
+    "competitor":    "แนะนำได้เฉพาะบริการของการรถไฟ",
+}
+
+
+async def check_all(text: str) -> dict:
     """
-    Generic NeMo guard check.
-    Uses rails.generate to check if the input/output triggers a refusal rail.
+    Run NeMo Guardrails ONCE and detect which (if any) rail was triggered.
+    Returns: {"safe": bool, "violation": str|None, "response": str}
     """
     if not _HAS_NEMO:
-        return True, "NeMo not available"
+        return {"safe": True, "violation": None, "response": "NeMo not available"}
 
     try:
-        import asyncio
-        # Ensure we have a loop
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-
-        # Generate response using NeMo Rails
-        # NeMo will follow the flows defined in rails.co
-        # If a rail triggers (e.g. off-topic), it generates a specific refusal message.
-        response = await _rails.generate_async(messages=[{"role": "user", "content": text}])
+        response = await _rails.generate_async(
+            messages=[{"role": "user", "content": text}]
+        )
         content = str(response.get("content", ""))
+        print(f"[NeMo] 📝 Raw response: {content[:120]}")
 
-        # Check refusal patterns defined in rails.co
-        refusal_map = {
-            "pii": ["ข้อมูลส่วนบุคคล"],
-            "off_topic": ["เกี่ยวกับการรถไฟ", "เฉพาะ"], 
-            "jailbreak": ["นโยบายความปลอดภัย", "I cannot", "unethical"],
-            "toxicity": ["สุภาพ", "toxic"],
-            "competitor": ["แนะนำได้เฉพาะ", "คู่แข่ง"],
-            "hallucination": ["ไม่ถูกต้อง", "ไม่เหมาะสม"] # Simulated for output
-        }
+        # Check if the response IS a known refusal message (exact phrase match)
+        for guard_type, refusal_phrase in _REFUSAL_MESSAGES.items():
+            if refusal_phrase in content:
+                return {
+                    "safe": False,
+                    "violation": guard_type,
+                    "response": content,
+                }
 
-        patterns = refusal_map.get(guard_type, [])
-        for p in patterns:
-            if p in content:
-                return False, f"NeMo Rail: {guard_type.capitalize()} detected"
+        return {"safe": True, "violation": None, "response": content}
 
-        return True, "Safe"
     except Exception as e:
-        return True, f"NeMo check failed (open): {e}"
+        print(f"[NeMo] ⚠️ check_all error: {e}")
+        return {"safe": True, "violation": None, "response": f"NeMo error: {e}"}
+

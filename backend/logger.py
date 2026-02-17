@@ -47,6 +47,8 @@ class LogManager:
             "details": details,
             "latency": latency
         }
+        # Print to console for debugging
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] [{step.upper()}] [{status.upper()}] {details}")
         await self.broadcast(message)
 
 # Global instance
