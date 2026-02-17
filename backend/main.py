@@ -124,35 +124,32 @@ async def run_input_guards(request: ChatRequest) -> Optional[ChatResponse]:
     # 1. PII (regex), 2. Jailbreak (regex), 3. Off-Topic (LLM)
     toggles: GuardToggle = getattr(request, fw, GuardToggle())
 
-    # Special handling for NeMo Pure Framework — Single Engine Call
+    # Special handling for NeMo Pure Framework
+    # Call NeMo ONCE and check all guards on the single response
     if fw == "nemo":
-        from backend.guards.nemo.nemo_engine import check_all
+        from backend.guards.nemo.nemo_engine import check_all_guards
 
-        # NeMo processes ALL rails in one call (embeddings + flow matching)
-        await log_manager.log("Input Guard", "processing", "[NeMo] Running all input rails (single call)...")
-        result = await check_all(request.message)
+        # Build list of enabled input guards
+        enabled_input = []
+        if toggles.pii: enabled_input.append("pii")
+        if toggles.jailbreak: enabled_input.append("jailbreak")
+        if toggles.toxicity: enabled_input.append("toxicity")
+        if toggles.off_topic: enabled_input.append("off_topic")
 
-        if not result["safe"]:
-            violation = result["violation"]
-            response_text = result["response"]
-            await log_manager.log("Input Guard", "error", f"[NeMo] {violation.upper()} Blocked: {response_text[:80]}")
-
-            # Map violation type to user-friendly response
-            violation_responses = {
-                "pii": ("ข้อความมีข้อมูลส่วนบุคคล (PII) ไม่สามารถประมวลผลได้", "PII"),
-                "jailbreak": ("ข้อความละเมิดนโยบายความปลอดภัย", "Jailbreak"),
-                "toxicity": ("ข้อความมีเนื้อหาที่ไม่เหมาะสม", "Toxicity"),
-                "off_topic": ("ฉันสามารถตอบคำถามเกี่ยวกับการรถไฟแห่งประเทศไทยเท่านั้น", "Off-Topic"),
-            }
-            msg, vtype = violation_responses.get(violation, (response_text, violation.capitalize()))
-
-            # Only block if the specific guard was toggled on
-            guard_toggle_map = {"pii": toggles.pii, "jailbreak": toggles.jailbreak,
-                                "toxicity": toggles.toxicity, "off_topic": toggles.off_topic}
-            if guard_toggle_map.get(violation, True):
+        if enabled_input:
+            await log_manager.log("Input Guard", "processing", f"[NeMo] Checking {', '.join(g.upper() for g in enabled_input)}...")
+            is_safe, details, violation = await check_all_guards(request.message, enabled_input)
+            if not is_safe:
+                # Map violation type to user-facing response
+                response_map = {
+                    "pii": ("ข้อความมีข้อมูลส่วนบุคคล (PII) ไม่สามารถประมวลผลได้", "PII"),
+                    "jailbreak": ("ข้อความละเมิดนโยบายความปลอดภัย", "Jailbreak"),
+                    "toxicity": ("ข้อความมีเนื้อหาที่ไม่เหมาะสม", "Toxicity"),
+                    "off_topic": ("ฉันสามารถตอบคำถามเกี่ยวกับการรถไฟแห่งประเทศไทยเท่านั้น", "Off-Topic"),
+                }
+                msg, vtype = response_map.get(violation, (details, violation))
+                await log_manager.log("Input Guard", "error", f"[NeMo] {vtype} Blocked: {details}")
                 return ChatResponse(response=msg, blocked=True, violation_type=vtype, framework_used=fw)
-
-        await log_manager.log("Input Guard", "success", "[NeMo] Input passed all rails")
         return None
 
 
@@ -223,32 +220,29 @@ async def run_output_guards(response_text: str, request: ChatRequest) -> Optiona
     # 1. Hallucination, 2. Toxicity, 3. Competitor
     toggles: GuardToggle = getattr(request, fw, GuardToggle())
 
-    # Special handling for NeMo Pure Framework — Single Engine Call
+    # Special handling for NeMo Pure Framework
+    # Call NeMo ONCE and check all output guards on the single response
     if fw == "nemo":
-        from backend.guards.nemo.nemo_engine import check_all
+        from backend.guards.nemo.nemo_engine import check_all_guards
 
-        # NeMo processes ALL output rails in one call
-        await log_manager.log("Output Guard", "processing", "[NeMo] Running all output rails (single call)...")
-        result = await check_all(response_text)
+        # Build list of enabled output guards
+        enabled_output = []
+        if toggles.hallucination: enabled_output.append("hallucination")
+        if toggles.toxicity: enabled_output.append("toxicity")
+        if toggles.competitor: enabled_output.append("competitor")
 
-        if not result["safe"]:
-            violation = result["violation"]
-            response_msg = result["response"]
-            await log_manager.log("Output Guard", "error", f"[NeMo] {violation.upper()} Blocked: {response_msg[:80]}")
-
-            violation_responses = {
-                "hallucination": ("คำตอบถูกกรองเนื่องจากอาจมีข้อมูลที่ไม่ถูกต้อง", "Hallucination"),
-                "toxicity": ("คำตอบถูกกรองเนื่องจากมีเนื้อหาไม่เหมาะสม", "Toxicity"),
-                "competitor": ("คำตอบถูกกรองเนื่องจากมีการกล่าวถึงคู่แข่ง", "Competitor"),
-            }
-            msg, vtype = violation_responses.get(violation, (response_msg, violation.capitalize()))
-
-            guard_toggle_map = {"hallucination": toggles.hallucination,
-                                "toxicity": toggles.toxicity, "competitor": toggles.competitor}
-            if guard_toggle_map.get(violation, True):
+        if enabled_output:
+            await log_manager.log("Output Guard", "processing", f"[NeMo] Checking {', '.join(g.upper() for g in enabled_output)}...")
+            is_safe, details, violation = await check_all_guards(response_text, enabled_output)
+            if not is_safe:
+                response_map = {
+                    "hallucination": ("คำตอบถูกกรองเนื่องจากอาจมีข้อมูลที่ไม่ถูกต้อง", "Hallucination"),
+                    "toxicity": ("คำตอบถูกกรองเนื่องจากมีเนื้อหาไม่เหมาะสม", "Toxicity"),
+                    "competitor": ("คำตอบถูกกรองเนื่องจากมีการกล่าวถึงคู่แข่ง", "Competitor"),
+                }
+                msg, vtype = response_map.get(violation, (details, violation))
+                await log_manager.log("Output Guard", "error", f"[NeMo] {vtype} Blocked: {details}")
                 return ChatResponse(response=msg, blocked=True, violation_type=vtype, framework_used=fw)
-
-        await log_manager.log("Output Guard", "success", "[NeMo] Output passed all rails")
         return None
 
 
