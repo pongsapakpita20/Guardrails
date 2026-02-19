@@ -337,9 +337,29 @@ async def chat(request: ChatRequest):
             metrics=metrics,
             blocked=True,
         )
+        cpu_info = f"CPU {metrics.get('cpu_percent', '—')}%"
+        
+        ram_info = f"RAM: {metrics.get('ram_used_gb', '—')}GB"
+        if metrics.get('ram_percent'): ram_info += f" ({metrics['ram_percent']}%)"
+
+        process_info = f"App: {metrics.get('process_mem_mb', '—')}MB"
+
+        # Show GB if > 1GB, else MB
+        gpu_mem = metrics.get('gpu_mem_gb')
+        if gpu_mem and gpu_mem > 1.0:
+            gpu_info = f"GPU: {gpu_mem}GB"
+        else:
+            gpu_info = f"GPU: {metrics.get('gpu_mem_mb', '—')}MB"
+            
+        if metrics.get('gpu_percent'): gpu_info += f" ({metrics['gpu_percent']}%)"
+
         await log_manager.log(
             "System", "complete",
-            f"บล็อคที่ Input (รวม {total_sec:.2f}s) | CPU {metrics.get('cpu_percent', '—')}% | GPU {metrics.get('gpu_mem_mb', '—')} MB",
+            f"Blocked (Input) {total_sec:.2f}s\n"
+            f"CPU: {metrics.get('cpu_percent', '—')}%\n"
+            f"{ram_info}\n"
+            f"{process_info}\n"
+            f"{gpu_info}",
             total_sec,
             metrics=metrics,
             blocked=True,
@@ -382,9 +402,29 @@ async def chat(request: ChatRequest):
             metrics=metrics,
             blocked=True,
         )
+        cpu_info = f"CPU {metrics.get('cpu_percent', '—')}%"
+        
+        ram_info = f"RAM: {metrics.get('ram_used_gb', '—')}GB"
+        if metrics.get('ram_percent'): ram_info += f" ({metrics['ram_percent']}%)"
+
+        process_info = f"App: {metrics.get('process_mem_mb', '—')}MB"
+
+        # Show GB if > 1GB, else MB
+        gpu_mem = metrics.get('gpu_mem_gb')
+        if gpu_mem and gpu_mem > 1.0:
+            gpu_info = f"GPU: {gpu_mem}GB"
+        else:
+            gpu_info = f"GPU: {metrics.get('gpu_mem_mb', '—')}MB"
+            
+        if metrics.get('gpu_percent'): gpu_info += f" ({metrics['gpu_percent']}%)"
+
         await log_manager.log(
             "System", "complete",
-            f"บล็อคที่ Output (รวม {total_sec:.2f}s) | CPU {metrics.get('cpu_percent', '—')}% | GPU {metrics.get('gpu_mem_mb', '—')} MB",
+            f"Blocked (Output) {total_sec:.2f}s\n"
+            f"CPU: {metrics.get('cpu_percent', '—')}%\n"
+            f"{ram_info}\n"
+            f"{process_info}\n"
+            f"{gpu_info}",
             total_sec,
             metrics=metrics,
             blocked=True,
@@ -394,9 +434,29 @@ async def chat(request: ChatRequest):
 
     total_sec = time.time() - start_time
     metrics = get_resource_metrics()
+    cpu_info = f"CPU {metrics.get('cpu_percent', '—')}%"
+    
+    ram_info = f"RAM: {metrics.get('ram_used_gb', '—')}GB"
+    if metrics.get('ram_percent'): ram_info += f" ({metrics['ram_percent']}%)"
+
+    process_info = f"App: {metrics.get('process_mem_mb', '—')}MB"
+
+    # Show GB if > 1GB, else MB
+    gpu_mem = metrics.get('gpu_mem_gb')
+    if gpu_mem and gpu_mem > 1.0:
+        gpu_info = f"GPU: {gpu_mem}GB"
+    else:
+        gpu_info = f"GPU: {metrics.get('gpu_mem_mb', '—')}MB"
+        
+    if metrics.get('gpu_percent'): gpu_info += f" ({metrics['gpu_percent']}%)"
+
     await log_manager.log(
         "System", "complete",
-        f"เสร็จสิ้น (รวม {total_sec:.2f}s) | CPU {metrics.get('cpu_percent', '—')}% | GPU {metrics.get('gpu_mem_mb', '—')} MB",
+        f"Complete {total_sec:.2f}s\n"
+        f"CPU: {metrics.get('cpu_percent', '—')}%\n"
+        f"{ram_info}\n"
+        f"{process_info}\n"
+        f"{gpu_info}",
         total_sec,
         metrics=metrics,
         blocked=False,

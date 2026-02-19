@@ -24,12 +24,15 @@ export default function LogPanel({ logs, onClear }) {
                 {logs.map((l, i) => (
                     <div key={i} className={`log-entry ${l.status} ${l.blocked ? "blocked" : ""}`}>
                         <div className="log-header">
-                            <span>[{l.step}]</span>
-                            <span>{new Date(l.timestamp).toLocaleTimeString()}</span>
-                            {l.blocked && <span style={{ color: "var(--error)", marginLeft: "auto" }}>BLOCKED</span>}
+                            <span className="step-badge">[{l.step}]</span>
+                            <span className="timestamp">{new Date(l.timestamp).toLocaleTimeString()}</span>
+                            {l.blocked && <span style={{ color: "var(--error)", marginLeft: "auto", fontWeight: "bold" }}>BLOCKED</span>}
                         </div>
-                        <div className="log-content">{l.details}</div>
-                        {(l.latency > 0 || (l.metrics && (l.metrics.cpu_percent != null || l.metrics.gpu_mem_mb != null))) && (
+                        {/* Use pre-wrap to preserve newlines from backend formatting */}
+                        <div className="log-content" style={{ whiteSpace: "pre-wrap", fontFamily: "monospace" }}>{l.details}</div>
+
+                        {/* Only show metrics row if details is NOT multiline (to avoid duplication) */}
+                        {(!l.details || !l.details.includes("\n")) && (l.latency > 0 || (l.metrics && (l.metrics.cpu_percent != null || l.metrics.gpu_mem_mb != null))) && (
                             <div className="metrics-row">
                                 {l.latency > 0 && <span>{l.latency.toFixed(2)}s</span>}
                                 {l.metrics?.cpu_percent != null && <span>CPU {l.metrics.cpu_percent}%</span>}

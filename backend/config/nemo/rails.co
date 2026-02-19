@@ -105,7 +105,7 @@ flow classify input $text -> $label
 
 flow classify output $text -> $label
   $label = ... """Classify bot response about Thai railways. Reply with exactly one (include double quotes): "HALLUCINATION" "TOXICITY" "COMPETITOR" "OK"
-  HALLUCINATION=wrong facts, fabricated info. TOXICITY=profanity, hate, aggression. COMPETITOR=mentions airlines, buses, Grab, Bolt, or other non-SRT transport as alternative. OK=safe, factual, about SRT only.
+  HALLUCINATION=wrong facts, fabricated info. TOXICITY=profanity, hate, aggression. COMPETITOR=mentions airlines, buses, Grab, Bolt, BTS, MRT, or other non-SRT transport as alternative. OK=safe, factual, about SRT only.
   NOT COMPETITOR: SRT train lines (สายเหนือ/ใต้/สระบุรี/ตะวันออก), Red Line, stations, D-Ticket, รฟท. — these are SRT. Return "OK" for answers that only mention SRT services.
   Response: {$text}
   Your reply (one quoted word only):"""

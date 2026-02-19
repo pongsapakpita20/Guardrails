@@ -56,12 +56,35 @@ class LogManager:
         extra = ""
         if latency > 0:
             extra = f" ({latency:.2f}s)"
-        if metrics:
+        if latency > 0:
+            extra = f" ({latency:.2f}s)"
+        
+        # Only add auto-metrics to console if details is NOT multiline
+        if metrics and "\n" not in details:
             parts = []
             if metrics.get("cpu_percent") is not None:
-                parts.append(f"CPU {metrics['cpu_percent']}%")
+                cpu_str = f"CPU {metrics['cpu_percent']}%"
+                parts.append(cpu_str)
+
+            if metrics.get("ram_used_gb") is not None:
+                ram_str = f"RAM {metrics['ram_used_gb']}GB"
+                if metrics.get("ram_total_gb"):
+                    ram_str += f"/{metrics['ram_total_gb']}GB"
+                if metrics.get("ram_percent") is not None:
+                    ram_str += f" ({metrics['ram_percent']}%)"
+                parts.append(ram_str)
+            
+            if metrics.get("process_mem_mb") is not None:
+                parts.append(f"App {metrics['process_mem_mb']}MB")
+
             if metrics.get("gpu_mem_mb") is not None:
-                parts.append(f"GPU {metrics['gpu_mem_mb']}MB")
+                gpu_str = f"GPU {metrics['gpu_mem_mb']}MB"
+                if metrics.get("gpu_mem_gb"):
+                    gpu_str += f" ({metrics['gpu_mem_gb']}GB)"
+                if metrics.get("gpu_percent") is not None:
+                    gpu_str += f" {metrics['gpu_percent']}%"
+                parts.append(gpu_str)
+            
             if parts:
                 extra += " [" + " | ".join(parts) + "]"
         if blocked:
