@@ -18,7 +18,7 @@ export default function App() {
         framework: "none",
         backend: "ollama",  // "ollama" | "gpustack"
         guardrails_ai: { pii: true, off_topic: true, jailbreak: true, hallucination: false, toxicity: true, competitor: false },
-        nemo: { pii: true, off_topic: true, jailbreak: true, hallucination: false, toxicity: true, competitor: false },
+        nemo: { pii: true, off_topic: true, jailbreak: true, hallucination: true, toxicity: true, competitor: true },
         llama_guard: { S1: true, S2: true, S3: true, S4: true, S5: true, S6: true, S7: true, S8: true, S9: true, S10: true, S11: true, S12: true, S13: true },
     });
 
