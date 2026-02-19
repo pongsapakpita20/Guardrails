@@ -16,24 +16,16 @@ export default function ChatPanel({ messages, onSend, loading }) {
         <div className="panel chat-panel">
             <div className="panel-header">
                 <h2>
-                    <span className="icon">🚂</span>
+                    <span className="icon">◆</span>
                     SRT Call Center
                 </h2>
             </div>
 
             <div className="panel-body">
                 {messages.length === 0 && (
-                    <div style={{
-                        height: "100%", display: "flex", flexDirection: "column",
-                        alignItems: "center", justifyContent: "center",
-                        color: "var(--text-dim)", opacity: 0.7
-                    }}>
-                        <div style={{
-                            fontSize: "4rem", marginBottom: "1rem",
-                            background: "var(--primary-light)", padding: "2rem",
-                            borderRadius: "50%"
-                        }}>🚂</div>
-                        <h3 style={{ fontSize: "1.2rem", fontWeight: 600, color: "var(--text-main)" }}>น้องรางรถไฟ</h3>
+                    <div className="chat-empty">
+                        <div className="chat-empty-icon">SRT</div>
+                        <h3>น้องรางรถไฟ</h3>
                         <p>ผู้ช่วยอัจฉริยะแห่งการรถไฟแห่งประเทศไทย</p>
                     </div>
                 )}
@@ -42,7 +34,7 @@ export default function ChatPanel({ messages, onSend, loading }) {
                     {messages.map((m, i) => (
                         <div key={i} className={`message ${m.role} ${m.blocked ? "blocked" : ""}`}>
                             {m.blocked && (
-                                <div className="violation-badge">🚫 {m.violation || "Blocked"}</div>
+                                <div className="violation-badge">{m.violation || "Blocked"}</div>
                             )}
                             {m.framework && !m.blocked && (
                                 <span className="framework-badge" style={{

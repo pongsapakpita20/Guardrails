@@ -32,14 +32,35 @@ export async function sendChat(payload) {
 }
 
 // -------- WebSocket --------
+// -------- WebSocket --------
+let activeSocket = null;
+
 export function connectLogs(onLog) {
-    let ws;
-    function open() {
-        ws = new WebSocket(WS_URL);
-        ws.onmessage = (e) => onLog(JSON.parse(e.data));
-        ws.onclose = () => setTimeout(open, 2000);
-        ws.onerror = () => ws.close();
+    if (activeSocket) {
+        // Prevent double connection in React Strict Mode or fast re-renders
+        return () => { };
     }
+
+    function open() {
+        activeSocket = new WebSocket(WS_URL);
+        activeSocket.onmessage = (e) => onLog(JSON.parse(e.data));
+        activeSocket.onclose = () => {
+            activeSocket = null;
+            setTimeout(open, 2000);
+        };
+        activeSocket.onerror = () => {
+            if (activeSocket) activeSocket.close();
+        };
+    }
+
     open();
-    return () => ws?.close();
+
+    return () => {
+        if (activeSocket) {
+            // Remove onclose to prevent auto-reconnect during manual cleanup
+            activeSocket.onclose = null;
+            activeSocket.close();
+            activeSocket = null;
+        }
+    };
 }

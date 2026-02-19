@@ -7,6 +7,7 @@ import time
 from backend.logger import log_manager
 from backend.ollama_service import ollama_service, gpustack_service, get_service
 from backend.config.settings import SYSTEM_PROMPT, FRAMEWORK_INFO
+from backend.metrics import get_resource_metrics
 
 app = FastAPI(title="SRT Chatbot Guardrails")
 
@@ -140,6 +141,22 @@ async def run_input_guards(request: ChatRequest) -> Optional[ChatResponse]:
             await log_manager.log("Input Guard", "processing", f"[NeMo] Checking {', '.join(g.upper() for g in enabled_input)}...")
             is_safe, details, violation = await check_all_guards(request.message, enabled_input)
             if not is_safe:
+                if violation == "nemo_unavailable":
+                    await log_manager.log("Input Guard", "error", f"[NeMo] Unavailable: {details}")
+                    return ChatResponse(
+                        response="ระบบ NeMo Guardrails ยังไม่พร้อมใช้งาน (โปรดติดตั้ง/activate environment ที่มี `nemoguardrails`)",
+                        blocked=True,
+                        violation_type="NeMoUnavailable",
+                        framework_used=fw,
+                    )
+                if violation == "nemo_error":
+                    await log_manager.log("Input Guard", "error", f"[NeMo] Error: {details}")
+                    return ChatResponse(
+                        response="ระบบ NeMo Guardrails ทำงานผิดพลาดชั่วคราว จึงระงับข้อความนี้เพื่อความปลอดภัยค่ะ",
+                        blocked=True,
+                        violation_type="NeMoError",
+                        framework_used=fw,
+                    )
                 # Map violation type to user-facing response
                 response_map = {
                     "pii": ("ข้อความมีข้อมูลส่วนบุคคล (PII) ไม่สามารถประมวลผลได้", "PII"),
@@ -235,6 +252,22 @@ async def run_output_guards(response_text: str, request: ChatRequest) -> Optiona
             await log_manager.log("Output Guard", "processing", f"[NeMo] Checking {', '.join(g.upper() for g in enabled_output)}...")
             is_safe, details, violation = await check_all_guards(response_text, enabled_output)
             if not is_safe:
+                if violation == "nemo_unavailable":
+                    await log_manager.log("Output Guard", "error", f"[NeMo] Unavailable: {details}")
+                    return ChatResponse(
+                        response="ระบบ NeMo Guardrails ยังไม่พร้อมใช้งาน (โปรดติดตั้ง/activate environment ที่มี `nemoguardrails`)",
+                        blocked=True,
+                        violation_type="NeMoUnavailable",
+                        framework_used=fw,
+                    )
+                if violation == "nemo_error":
+                    await log_manager.log("Output Guard", "error", f"[NeMo] Error: {details}")
+                    return ChatResponse(
+                        response="ระบบ NeMo Guardrails ทำงานผิดพลาดชั่วคราว จึงระงับคำตอบนี้เพื่อความปลอดภัยค่ะ",
+                        blocked=True,
+                        violation_type="NeMoError",
+                        framework_used=fw,
+                    )
                 response_map = {
                     "hallucination": ("คำตอบถูกกรองเนื่องจากอาจมีข้อมูลที่ไม่ถูกต้อง", "Hallucination"),
                     "toxicity": ("คำตอบถูกกรองเนื่องจากมีเนื้อหาไม่เหมาะสม", "Toxicity"),
@@ -291,10 +324,28 @@ async def chat(request: ChatRequest):
     fw = request.framework
 
     await log_manager.log("Input Guard", "start", f"Framework: {fw} — Checking input...")
+    input_guard_start = time.time()
     blocked = await run_input_guards(request)
+    input_guard_sec = time.time() - input_guard_start
     if blocked:
+        total_sec = time.time() - start_time
+        metrics = get_resource_metrics()
+        await log_manager.log(
+            "Input Guard", "success",
+            f"Blocked (input) — รวม {total_sec:.2f}s",
+            input_guard_sec,
+            metrics=metrics,
+            blocked=True,
+        )
+        await log_manager.log(
+            "System", "complete",
+            f"บล็อคที่ Input (รวม {total_sec:.2f}s) | CPU {metrics.get('cpu_percent', '—')}% | GPU {metrics.get('gpu_mem_mb', '—')} MB",
+            total_sec,
+            metrics=metrics,
+            blocked=True,
+        )
         return blocked
-    await log_manager.log("Input Guard", "success", "Input ผ่านทุกด่านแล้ว", time.time() - start_time)
+    await log_manager.log("Input Guard", "success", f"Input ผ่านทุกด่านแล้ว ({input_guard_sec:.2f}s)", input_guard_sec)
 
     llm_start = time.time()
     svc = get_service(request.backend)
@@ -314,16 +365,42 @@ async def chat(request: ChatRequest):
         await log_manager.log("LLM", "error", f"Generation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-    await log_manager.log("LLM", "success", "สร้างคำตอบเสร็จสิ้น", time.time() - llm_start)
+    llm_sec = time.time() - llm_start
+    await log_manager.log("LLM", "success", f"สร้างคำตอบเสร็จสิ้น ({llm_sec:.2f}s)", llm_sec)
 
     await log_manager.log("Output Guard", "start", f"Framework: {fw} — Checking output...")
+    output_guard_start = time.time()
     blocked = await run_output_guards(full_response, request)
+    output_guard_sec = time.time() - output_guard_start
     if blocked:
+        total_sec = time.time() - start_time
+        metrics = get_resource_metrics()
+        await log_manager.log(
+            "Output Guard", "success",
+            f"Blocked (output) — รวม {total_sec:.2f}s",
+            output_guard_sec,
+            metrics=metrics,
+            blocked=True,
+        )
+        await log_manager.log(
+            "System", "complete",
+            f"บล็อคที่ Output (รวม {total_sec:.2f}s) | CPU {metrics.get('cpu_percent', '—')}% | GPU {metrics.get('gpu_mem_mb', '—')} MB",
+            total_sec,
+            metrics=metrics,
+            blocked=True,
+        )
         return blocked
-    await log_manager.log("Output Guard", "success", "Output ผ่านทุกด่านแล้ว")
+    await log_manager.log("Output Guard", "success", f"Output ผ่านทุกด่านแล้ว ({output_guard_sec:.2f}s)", output_guard_sec)
 
-    total = time.time() - start_time
-    await log_manager.log("System", "complete", f"เสร็จสิ้น (รวม {total:.2f}s)", total)
+    total_sec = time.time() - start_time
+    metrics = get_resource_metrics()
+    await log_manager.log(
+        "System", "complete",
+        f"เสร็จสิ้น (รวม {total_sec:.2f}s) | CPU {metrics.get('cpu_percent', '—')}% | GPU {metrics.get('gpu_mem_mb', '—')} MB",
+        total_sec,
+        metrics=metrics,
+        blocked=False,
+    )
 
     return ChatResponse(response=full_response, framework_used=fw)
 

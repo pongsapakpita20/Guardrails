@@ -46,7 +46,7 @@ const LLAMA_CATEGORIES = [
     { key: "S13", label: "Elections" },
 ];
 
-export default function SettingsPanel({ config, setConfig, models, gpu, modelsLoading }) {
+export default function SettingsPanel({ config, setConfig, models, gpu, modelsLoading, theme, toggleTheme }) {
     const fw = config.framework;
     const fwInfo = FRAMEWORK_GUARDS[fw] || FRAMEWORK_GUARDS.none;
     const fwToggles = config[fw] || {};
@@ -70,26 +70,30 @@ export default function SettingsPanel({ config, setConfig, models, gpu, modelsLo
         <div className="panel settings-panel">
             <div className="panel-header">
                 <h2>
-                    <span className="icon">⚙️</span>
+                    <span className="icon">◇</span>
                     Settings
                 </h2>
             </div>
 
             <div className="panel-body">
-                {/* GPU */}
+                {/* Theme Toggle */}
+                <div className="settings-section">
+                    <div className="setting-row">
+                        <span>Appearance ({theme === "dark" ? "Dark" : "Light"})</span>
+                        <Toggle checked={theme === "light"} onChange={toggleTheme} />
+                    </div>
+                </div>
+
                 <div className="settings-section">
                     <h3>System Status</h3>
                     {modelsLoading ? (
-                        <div className="gpu-badge offline" style={{ borderColor: "#cbd5e1", background: "#f1f5f9", color: "#64748b" }}>
-                            ⏳ Checking...
-                        </div>
+                        <div className="gpu-badge offline">Checking...</div>
                     ) : gpu ? (
                         <div className={`gpu-badge ${gpu.cuda_available ? "online" : "offline"}`}>
-                            {gpu.cuda_available ? "⚡" : "🔴"}{" "}
                             {gpu.cuda_available ? gpu.gpu_name : "CPU Only"}
                         </div>
                     ) : (
-                        <div className="gpu-badge offline">❌ Offline</div>
+                        <div className="gpu-badge offline">Offline</div>
                     )}
                 </div>
 
@@ -101,13 +105,13 @@ export default function SettingsPanel({ config, setConfig, models, gpu, modelsLo
                             className={`backend-btn ${config.backend === "ollama" ? "active" : ""}`}
                             onClick={() => setBackend("ollama")}
                         >
-                            🦙 Ollama
+                            Ollama
                         </button>
                         <button
                             className={`backend-btn ${config.backend === "gpustack" ? "active" : ""}`}
                             onClick={() => setBackend("gpustack")}
                         >
-                            ⚡ GPUStack
+                            GPUStack
                         </button>
                     </div>
                 </div>
@@ -139,10 +143,10 @@ export default function SettingsPanel({ config, setConfig, models, gpu, modelsLo
                 {/* ===== Input Guards (3) ===== */}
                 {fw !== "none" && fw !== "llama_guard" && inputGuards.length > 0 && (
                     <div className="settings-section">
-                        <h3>🛡️ Input Guards ({inputGuards.length})</h3>
+                        <h3>Input Guards ({inputGuards.length})</h3>
                         {inputGuards.map((g) => (
                             <div className="setting-row" key={g.key}>
-                                <span>{g.emoji} {g.label}</span>
+                                <span>{g.label}</span>
                                 <Toggle checked={!!fwToggles[g.key]} onChange={() => toggleGuard(g.key)} />
                             </div>
                         ))}
@@ -152,10 +156,10 @@ export default function SettingsPanel({ config, setConfig, models, gpu, modelsLo
                 {/* ===== Output Guards (3) ===== */}
                 {fw !== "none" && fw !== "llama_guard" && outputGuards.length > 0 && (
                     <div className="settings-section">
-                        <h3>🔒 Output Guards ({outputGuards.length})</h3>
+                        <h3>Output Guards ({outputGuards.length})</h3>
                         {outputGuards.map((g) => (
                             <div className="setting-row" key={g.key}>
-                                <span>{g.emoji} {g.label}</span>
+                                <span>{g.label}</span>
                                 <Toggle checked={!!fwToggles[g.key]} onChange={() => toggleGuard(g.key)} />
                             </div>
                         ))}
@@ -165,13 +169,10 @@ export default function SettingsPanel({ config, setConfig, models, gpu, modelsLo
                 {/* Llama Guard S1-S13 */}
                 {fw === "llama_guard" && (
                     <div className="settings-section">
-                        <h3>🛡️ Categories (S1–S13)</h3>
+                        <h3>Categories (S1–S13)</h3>
                         {LLAMA_CATEGORIES.map(({ key, label }) => (
                             <div className="setting-row" key={key}>
-                                <span>
-                                    <strong style={{ color: "var(--primary)", marginRight: 6 }}>{key}</strong>
-                                    {label}
-                                </span>
+                                <span><strong className="llama-key">{key}</strong> {label}</span>
                                 <Toggle checked={!!fwToggles[key]} onChange={() => toggleGuard(key)} />
                             </div>
                         ))}
@@ -179,10 +180,8 @@ export default function SettingsPanel({ config, setConfig, models, gpu, modelsLo
                 )}
 
                 {fw === "none" && (
-                    <div className="settings-section" style={{ background: "var(--primary-light)", border: "1px dashed var(--primary)" }}>
-                        <p style={{ color: "var(--primary)", fontSize: "0.8rem", textAlign: "center", fontWeight: 500 }}>
-                            👆 กรุณาเลือก Framework เพื่อเปิดใช้งาน Guardrails
-                        </p>
+                    <div className="settings-section settings-nudge">
+                        <p>กรุณาเลือก Framework เพื่อเปิดใช้งาน Guardrails</p>
                     </div>
                 )}
             </div>

@@ -11,6 +11,7 @@ export default function App() {
     const [models, setModels] = useState([]);
     const [gpu, setGpu] = useState(null);
     const [modelsLoading, setModelsLoading] = useState(false);
+    const [theme, setTheme] = useState("light"); // Default to light mode
 
     const [config, setConfig] = useState({
         model: "",
@@ -76,13 +77,15 @@ export default function App() {
     };
 
     return (
-        <div className="app">
+        <div className={`app ${theme === "light" ? "light-mode" : ""}`}>
             <SettingsPanel
                 config={config}
                 setConfig={setConfig}
                 models={models}
                 gpu={gpu}
                 modelsLoading={modelsLoading}
+                theme={theme}
+                toggleTheme={() => setTheme(t => t === "dark" ? "light" : "dark")}
             />
             <ChatPanel messages={messages} onSend={handleSend} loading={loading} />
             <LogPanel logs={logs} onClear={() => setLogs([])} />

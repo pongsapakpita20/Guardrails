@@ -263,8 +263,9 @@ npm run dev
 1. เลือก **Backend** (Ollama หรือ GPUStack)
 2. เลือก **Model** ที่ต้องการ
 3. เลือก **Guardrail Framework** (None / Guardrails AI / NeMo / Llama Guard 3)
-4. เปิด/ปิด Guard แต่ละตัวตามต้องการ
-5. พิมพ์ข้อความใน Chat แล้วส่ง
+4. **[ใหม่]** เลือกโหมดแสดงผล (Dark / Light Mode) ที่หน้า Settings
+5. เปิด/ปิด Guard แต่ละตัวตามต้องการ
+6. พิมพ์ข้อความใน Chat แล้วส่ง
 
 ---
 

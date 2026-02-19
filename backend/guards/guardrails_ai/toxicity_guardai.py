@@ -18,10 +18,10 @@ try:
         on_fail="exception",
     )
     _HAS_GUARD = True
-    print("[Toxicity Guard] ✅ Guardrails AI ToxicLanguage (Detoxify) loaded")
+    print("[Toxicity Guard] OK Guardrails AI ToxicLanguage (Detoxify) loaded")
 except Exception as e:
     _HAS_GUARD = False
-    print(f"[Toxicity Guard] ⚠️  ToxicLanguage not available ({e})")
+    print(f"[Toxicity Guard] WARN ToxicLanguage not available ({e})")
 
 # --- LLM-based Thai toxicity check ---
 from backend.ollama_service import ollama_service

@@ -8,7 +8,7 @@ export default function LogPanel({ logs, onClear }) {
         <div className="panel log-panel">
             <div className="panel-header">
                 <h2>
-                    <span className="icon">⚡</span>
+                    <span className="icon">▸</span>
                     Live Logs
                 </h2>
                 <button className="clear-btn" onClick={onClear}>Clear</button>
@@ -16,21 +16,24 @@ export default function LogPanel({ logs, onClear }) {
 
             <div className="panel-body">
                 {logs.length === 0 && (
-                    <div style={{ textAlign: "center", marginTop: "40%", color: "var(--text-dim)" }}>
-                        <p style={{ fontSize: "0.85rem" }}>Waiting for activity...</p>
+                    <div className="log-empty">
+                        <p>Waiting for activity...</p>
                     </div>
                 )}
 
                 {logs.map((l, i) => (
-                    <div key={i} className={`log-entry ${l.status}`}>
+                    <div key={i} className={`log-entry ${l.status} ${l.blocked ? "blocked" : ""}`}>
                         <div className="log-header">
-                            <span style={{ fontWeight: 600, color: "var(--primary)" }}>[{l.step}]</span>
+                            <span>[{l.step}]</span>
                             <span>{new Date(l.timestamp).toLocaleTimeString()}</span>
+                            {l.blocked && <span style={{ color: "var(--error)", marginLeft: "auto" }}>BLOCKED</span>}
                         </div>
                         <div className="log-content">{l.details}</div>
-                        {l.latency > 0 && (
-                            <div style={{ fontSize: "0.65rem", textAlign: "right", marginTop: "4px", opacity: 0.6 }}>
-                                {l.latency.toFixed(3)}s
+                        {(l.latency > 0 || (l.metrics && (l.metrics.cpu_percent != null || l.metrics.gpu_mem_mb != null))) && (
+                            <div className="metrics-row">
+                                {l.latency > 0 && <span>{l.latency.toFixed(2)}s</span>}
+                                {l.metrics?.cpu_percent != null && <span>CPU {l.metrics.cpu_percent}%</span>}
+                                {l.metrics?.gpu_mem_mb != null && <span>GPU {l.metrics.gpu_mem_mb} MB</span>}
                             </div>
                         )}
                     </div>
