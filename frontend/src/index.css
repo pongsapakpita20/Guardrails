@@ -1,20 +1,23 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap");
 
 :root {
-  /* Default Dark Mode */
-  --bg-app: #0a0a0f;
-  --bg-panel: #111118;
-  --bg-elevated: #18181f;
-  --border: #27272f;
+  /* Default Dark Mode - Softened */
+  --bg-app: #18181b;
+  /* Zinc-950: Lighter than #0a0a0f */
+  --bg-panel: #27272a;
+  /* Zinc-900: Lighter than #111118 */
+  --bg-elevated: #3f3f46;
+  /* Zinc-700: Lighter than #18181f */
+  --border: #52525b;
+  /* Zinc-600: Much visible gray border */
   --border-focus: #22d3ee;
   --primary: #22d3ee;
   --primary-dim: rgba(34, 211, 238, 0.15);
   --text: #ffffff;
-  /* Pure white for better contrast */
   --text-muted: #e4e4e7;
-  /* Zinc-200: Much lighter gray */
-  --text-dim: #a1a1aa;
-  /* Zinc-400: Lighter than before */
+  /* Zinc-200 */
+  --text-dim: #d4d4d8;
+  /* Zinc-300: Lighter than #a1a1aa */
   --success: #34d399;
   --error: #f87171;
   --radius: 8px;
@@ -258,7 +261,8 @@ body,
   width: 14px;
   left: 3px;
   bottom: 3px;
-  background: var(--text);
+  background: #ffffff;
+  /* Always white for better contrast in light mode */
   border-radius: 50%;
   transition: transform 0.2s;
 }
