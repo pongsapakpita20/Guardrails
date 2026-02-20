@@ -23,6 +23,15 @@ export default function App() {
         llama_guard: { S1: true, S2: true, S3: true, S4: true, S5: true, S6: true, S7: true, S8: true, S9: true, S10: true, S11: true, S12: true, S13: true },
     });
 
+    // Toggle document theme class for index.css :root variables
+    useEffect(() => {
+        if (theme === "light") {
+            document.documentElement.classList.add("light-mode");
+        } else {
+            document.documentElement.classList.remove("light-mode");
+        }
+    }, [theme]);
+
     // Re-fetch models & health when backend changes
     useEffect(() => {
         setModelsLoading(true);
@@ -78,7 +87,7 @@ export default function App() {
     };
 
     return (
-        <div className={`app ${theme === "light" ? "light-mode" : ""}`}>
+        <div className="app">
             <SettingsPanel
                 config={config}
                 setConfig={setConfig}
