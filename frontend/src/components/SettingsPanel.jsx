@@ -143,6 +143,28 @@ export default function SettingsPanel({ config, setConfig, models, gpu, modelsLo
                     </div>
                 </div>
 
+                {/* NeMo Mode Selection */}
+                {fw === "nemo" && (
+                    <div className="settings-section">
+                        <h3>NeMo Mode</h3>
+                        <div className="select-wrap">
+                            <select 
+                                value={config.nemo_mode || "emb"} 
+                                onChange={(e) => setConfig((c) => ({ ...c, nemo_mode: e.target.value }))}
+                            >
+                                <option value="emb">Embedding-only (Fast ~50ms)</option>
+                                <option value="qwen">Qwen 3 0.6B Guard (LLM ~2-5s)</option>
+                                <option value="hybrid">Hybrid (Embedding → Qwen)</option>
+                            </select>
+                        </div>
+                        <p style={{ fontSize: "0.85em", color: "var(--text-secondary)", marginTop: "0.5em" }}>
+                            {config.nemo_mode === "emb" && "ใช้ embedding matching เท่านั้น (เร็วที่สุด)"}
+                            {config.nemo_mode === "qwen" && "ใช้ Qwen 3 0.6B เป็น LLM guard (แม่นยำกว่า)"}
+                            {config.nemo_mode === "hybrid" && "ตรวจด้วย Embedding ก่อน แล้วค่อยตรวจด้วย Qwen ถ้าผ่าน"}
+                        </p>
+                    </div>
+                )}
+
                 {/* ===== Input Guards (3) ===== */}
                 {fw !== "none" && fw !== "llama_guard" && inputGuards.length > 0 && (
                     <div className="settings-section">

@@ -54,6 +54,7 @@ class ChatRequest(BaseModel):
     backend: str = "ollama"  # "ollama" | "gpustack"
     guardrails_ai: GuardToggle = GuardToggle()
     nemo: GuardToggle = GuardToggle()
+    nemo_mode: str = "emb"  # "emb" | "qwen" | "hybrid"
     llama_guard: LlamaGuardToggle = LlamaGuardToggle()
 
 class ChatResponse(BaseModel):
@@ -141,8 +142,9 @@ async def run_input_guards(request: ChatRequest) -> Optional[ChatResponse]:
         if toggles.off_topic: enabled_input.append("off_topic")
 
         if enabled_input:
-            await log_manager.log("Input Guard", "processing", f"[NeMo] Checking {', '.join(g.upper() for g in enabled_input)}...")
-            is_safe, details, violation = await check_all_guards(request.message, enabled_input)
+            nemo_mode = getattr(request, "nemo_mode", "emb")
+            await log_manager.log("Input Guard", "processing", f"[NeMo-{nemo_mode}] Checking {', '.join(g.upper() for g in enabled_input)}...")
+            is_safe, details, violation = await check_all_guards(request.message, enabled_input, nemo_mode)
             if not is_safe:
                 if violation == "nemo_unavailable":
                     await log_manager.log("Input Guard", "error", f"[NeMo] Unavailable: {details}")
@@ -252,8 +254,9 @@ async def run_output_guards(response_text: str, request: ChatRequest) -> Optiona
         if toggles.competitor: enabled_output.append("competitor")
 
         if enabled_output:
-            await log_manager.log("Output Guard", "processing", f"[NeMo] Checking {', '.join(g.upper() for g in enabled_output)}...")
-            is_safe, details, violation = await check_all_guards(response_text, enabled_output)
+            nemo_mode = getattr(request, "nemo_mode", "emb")
+            await log_manager.log("Output Guard", "processing", f"[NeMo-{nemo_mode}] Checking {', '.join(g.upper() for g in enabled_output)}...")
+            is_safe, details, violation = await check_all_guards(response_text, enabled_output, nemo_mode)
             if not is_safe:
                 if violation == "nemo_unavailable":
                     await log_manager.log("Output Guard", "error", f"[NeMo] Unavailable: {details}")

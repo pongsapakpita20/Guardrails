@@ -18,6 +18,15 @@ DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "scb10x/typhoon2.5-qwen3-4b")
 LLAMA_GUARD_MODEL = os.getenv("LLAMA_GUARD_MODEL", "llama-guard3:8b")
 
 # ============================================================
+# NeMo Guardrails Model Configuration
+# ============================================================
+# Qwen 3 0.6B model (ใช้สำหรับ guard classification)
+NEMO_QWEN_GUARD_MODEL = os.getenv("NEMO_QWEN_GUARD_MODEL", "qwen3:0.6b")
+
+# Embedding model (ใช้สำหรับ embedding-based guard)
+NEMO_EMBEDDING_MODEL = os.getenv("NEMO_EMBEDDING_MODEL", "qwen3-embedding:0.6b")
+
+# ============================================================
 # System Prompt — กำหนดหน้าที่/บทบาทของโมเดล
 # ============================================================
 SYSTEM_PROMPT = """คุณคือพนักงาน Call Center ของการรถไฟแห่งประเทศไทย (รฟท. / SRT)

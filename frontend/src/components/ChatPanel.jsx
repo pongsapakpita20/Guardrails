@@ -1,5 +1,28 @@
 import React, { useEffect, useRef, useState } from "react";
 
+/* Map violation type → icon + label + color class */
+const VIOLATION_INFO = {
+    PII: { icon: "🔒", label: "PII Detected", cls: "guard-pii" },
+    Jailbreak: { icon: "🛡️", label: "Jailbreak Blocked", cls: "guard-jailbreak" },
+    "Off-Topic": { icon: "🚫", label: "Off-Topic", cls: "guard-offtopic" },
+    Toxicity: { icon: "⚠️", label: "Toxicity Detected", cls: "guard-toxicity" },
+    Hallucination: { icon: "🔍", label: "Hallucination", cls: "guard-hallucination" },
+    Competitor: { icon: "🏢", label: "Competitor Mention", cls: "guard-competitor" },
+    "Llama Guard": { icon: "🦙", label: "Llama Guard", cls: "guard-llama" },
+    NeMoUnavailable: { icon: "⚙️", label: "NeMo Unavailable", cls: "guard-error" },
+    NeMoError: { icon: "⚙️", label: "NeMo Error", cls: "guard-error" },
+    "Server Error": { icon: "💥", label: "Server Error", cls: "guard-error" },
+};
+
+function getViolationInfo(type) {
+    return VIOLATION_INFO[type] || { icon: "⛔", label: type || "Blocked", cls: "guard-default" };
+}
+
+/* Clean [RAIL:XXX] prefixes from displayed text */
+function cleanContent(text) {
+    return text?.replace(/\[RAIL:\w+\]\s*/g, "").replace(/\[SAFE\]\s*/g, "").trim() || "";
+}
+
 export default function ChatPanel({ messages, onSend, loading }) {
     const [text, setText] = useState("");
     const endRef = useRef(null);
@@ -31,22 +54,48 @@ export default function ChatPanel({ messages, onSend, loading }) {
                 )}
 
                 <div className="chat-messages">
-                    {messages.map((m, i) => (
-                        <div key={i} className={`message ${m.role} ${m.blocked ? "blocked" : ""}`}>
-                            {m.blocked && (
-                                <div className="violation-badge">{m.violation || "Blocked"}</div>
-                            )}
-                            {m.framework && !m.blocked && (
-                                <span className="framework-badge" style={{
-                                    fontSize: "0.65rem", padding: "2px 6px", borderRadius: "4px",
-                                    marginBottom: "4px", display: "inline-block", opacity: 0.8
-                                }}>
-                                    {m.framework}
-                                </span>
-                            )}
-                            <div>{m.content}</div>
-                        </div>
-                    ))}
+                    {messages.map((m, i) => {
+                        const info = m.blocked ? getViolationInfo(m.violation) : null;
+                        const displayContent = cleanContent(m.content);
+
+                        return (
+                            <div key={i} className={`message ${m.role} ${m.blocked ? `blocked ${info.cls}` : ""}`}>
+                                {/* Blocked message — enhanced UI */}
+                                {m.blocked && (
+                                    <div className="guard-card">
+                                        <div className="guard-header">
+                                            <span className="guard-icon">{info.icon}</span>
+                                            <span className="guard-label">{info.label}</span>
+                                            {m.framework && (
+                                                <span className="guard-framework">{m.framework}</span>
+                                            )}
+                                        </div>
+                                        <div className="guard-body">
+                                            {displayContent}
+                                        </div>
+                                        <div className="guard-shimmer"></div>
+                                    </div>
+                                )}
+
+                                {/* Normal bot response */}
+                                {!m.blocked && m.role === "bot" && (
+                                    <>
+                                        {m.framework && (
+                                            <span className="framework-pill">
+                                                ✓ {m.framework}
+                                            </span>
+                                        )}
+                                        <div>{displayContent}</div>
+                                    </>
+                                )}
+
+                                {/* User message */}
+                                {m.role === "user" && (
+                                    <div>{m.content}</div>
+                                )}
+                            </div>
+                        );
+                    })}
 
                     {loading && (
                         <div className="typing">

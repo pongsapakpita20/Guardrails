@@ -1,21 +1,37 @@
 colang_version: "2.x"
 
 models:
-  # Main LLM — Typhoon 2.5 via Ollama
+  # Main LLM — จะถูก override ตามโหมดที่เลือก (emb/qwen/hybrid)
+  # - emb mode: ใช้ NEMO_TYPHOON_MODEL (ไม่ใช้สำหรับ guard แต่ NeMo ต้องการ)
+  # - qwen mode: ใช้ NEMO_QWEN_GUARD_MODEL
+  # - hybrid mode: ใช้ NEMO_QWEN_GUARD_MODEL
   - type: main
     engine: ollama
-    model: scb10x/typhoon2.5-qwen3-4b
+    model: qwen3:0.6b  # จะถูก override โดย nemo_engine.py ตามโหมด
     parameters:
       base_url: http://localhost:11434
-      num_predict: 512
-      temperature: 0.1
+      num_predict: 256
+      temperature: 0.0
 
+  # Embedding model — ใช้สำหรับโหมด Embedding-only และ Hybrid
+  # จะถูก override เป็น NEMO_EMBEDDING_MODEL โดย nemo_engine.py
   - type: embeddings
     engine: openai
-    model: qwen3-embedding:0.6b
+    model: qwen3-embedding:0.6b  # จะถูก override โดย nemo_engine.py
     parameters:
       base_url: http://localhost:11434/v1
       api_key: ollama
+
+rails:
+  dialog:
+    user_messages:
+      # embeddings_only จะถูก set แบบ dynamic ตามโหมดที่เลือก
+      # โหมด emb: embeddings_only: true
+      # โหมด qwen: embeddings_only: false (หรือไม่ set)
+      # โหมด hybrid: embeddings_only: true (embedding ก่อน แล้วค่อย Qwen)
+      embeddings_only: false
+      embeddings_only_similarity_threshold: 0.4
+      embeddings_only_fallback_intent: "user said something safe"
 
 instructions:
   - type: general
@@ -40,11 +56,3 @@ instructions:
       - ตอบสั้น กระชับ เข้าใจง่าย (ใช้ภาษาไทยเป็นหลัก)
       - พยายามเข้าใจคำแสลงหรือคำที่พิมพ์ผิดของผู้ใช้ และตอบกลับอย่างถูกต้อง
       - ลงท้ายด้วย "ค่ะ" หรือ "นะคะ" เสมอ
-
-# rails:
-#   input:
-#     flows:
-#       - self check input  # Disabled: LLM self-check causes false positives with Thai
-#   output:
-#     flows:
-#       - self check output  # Disabled: Embedding-based rails in rails.co handle all cases

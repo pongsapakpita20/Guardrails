@@ -33,3 +33,7 @@ dist/
 build/
 .env
 .DS_Store
+
+# Large model files
+*.gguf
+*.bin
