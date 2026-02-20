@@ -32,7 +32,7 @@ FRAMEWORK_DEFAULTS = {
     "llama_guard": {
         "S1": True, "S2": True, "S3": True, "S4": True, "S5": True,
         "S6": True, "S7": True, "S8": True, "S9": True, "S10": True,
-        "S11": True, "S12": True, "S13": True,
+        "S11": True, "S12": True, "S13": True, "S14": True, "S15": True,
     },
 }
 

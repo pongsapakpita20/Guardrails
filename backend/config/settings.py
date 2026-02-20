@@ -15,7 +15,7 @@ GPUSTACK_API_KEY = os.getenv("GPUSTACK_API_KEY", "")
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "scb10x/typhoon2.5-qwen3-4b")
 
 # Llama Guard model name in Ollama
-LLAMA_GUARD_MODEL = os.getenv("LLAMA_GUARD_MODEL", "llama-guard3")
+LLAMA_GUARD_MODEL = os.getenv("LLAMA_GUARD_MODEL", "llama-guard3:8b")
 
 # ============================================================
 # System Prompt — กำหนดหน้าที่/บทบาทของโมเดล
@@ -56,7 +56,7 @@ FRAMEWORK_INFO = {
     "none":          {"name": "None (Raw)", "supports": []},
     "guardrails_ai": {"name": "Guardrails AI", "supports": ["pii", "off_topic", "jailbreak", "hallucination", "toxicity", "competitor"]},
     "nemo":          {"name": "NeMo Guardrails", "supports": ["pii", "off_topic", "jailbreak", "hallucination", "toxicity", "competitor"]},
-    "llama_guard":   {"name": "Llama Guard 3 8B", "supports": ["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13"]},
+    "llama_guard":   {"name": "Llama Guard 3 8B", "supports": ["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13","S14","S15","S16"]},
 }
 
 # ============================================================

@@ -44,6 +44,9 @@ const LLAMA_CATEGORIES = [
     { key: "S11", label: "Self-Harm" },
     { key: "S12", label: "Sexual Content" },
     { key: "S13", label: "Elections" },
+    { key: "S14", label: "Competitor Mention (คู่แข่ง)" },
+    { key: "S15", label: "Off-Topic (นอกเรื่อง)" },
+    { key: "S16", label: "Profanity & Toxicity (คำหยาบ)" },
 ];
 
 export default function SettingsPanel({ config, setConfig, models, gpu, modelsLoading, theme, toggleTheme }) {

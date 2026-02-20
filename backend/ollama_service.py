@@ -38,7 +38,12 @@ class OllamaService:
     # Use sync generator for now as FastAPI handles threadpool offloading effectively for iterators
     def chat_stream(self, model: str, messages: List[Dict[str, str]]) -> Generator[str, None, None]:
         url = f"{OLLAMA_HOST}/api/chat"
-        payload = {"model": model, "messages": messages, "stream": True}
+        payload = {
+            "model": model, 
+            "messages": messages, 
+            "stream": True,
+            "options": {"temperature": 0} 
+        }
 
         try:
             with requests.post(url, json=payload, stream=True, timeout=60) as response:

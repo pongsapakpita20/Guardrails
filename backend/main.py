@@ -43,6 +43,9 @@ class LlamaGuardToggle(BaseModel):
     S11: bool = True   # Self-Harm
     S12: bool = True   # Sexual Content
     S13: bool = True   # Elections
+    S14: bool = True   # Competitor
+    S15: bool = True   # Off-Topic
+    S16: bool = True   # Profanity
 
 class ChatRequest(BaseModel):
     message: str
@@ -110,7 +113,7 @@ async def run_input_guards(request: ChatRequest) -> Optional[ChatResponse]:
     # --- Llama Guard: unified S1-S14 check ---
     if fw == "llama_guard":
         toggles = request.llama_guard
-        enabled = [k for k in ["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13"] if getattr(toggles, k)]
+        enabled = [k for k in ["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13","S14","S15","S16"] if getattr(toggles, k)]
         if enabled:
             from backend.guards.llama_guard.checker_llamaguard import llama_guard_checker
             await log_manager.log("Input Guard", "processing", f"[Llama Guard 3] Checking {len(enabled)} categories...")
@@ -222,7 +225,7 @@ async def run_output_guards(response_text: str, request: ChatRequest) -> Optiona
     # --- Llama Guard: same S1-S14 check on output ---
     if fw == "llama_guard":
         toggles = request.llama_guard
-        enabled = [k for k in ["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13"] if getattr(toggles, k)]
+        enabled = [k for k in ["S1","S2","S3","S4","S5","S6","S7","S8","S9","S10","S11","S12","S13","S14","S15","S16"] if getattr(toggles, k)]
         if enabled:
             from backend.guards.llama_guard.checker_llamaguard import llama_guard_checker
             await log_manager.log("Output Guard", "processing", f"[Llama Guard 3] Checking output ({len(enabled)} categories)...")
